@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as vscode from 'vscode';
 import type { BridgeInfo } from './bridge-server';
+import { allowLocalBridge } from './workbench-patch';
 import { workbenchCandidates } from './workbench-paths';
 
 const START = '<!-- ASTOCK_WATCH_BACKGROUND_START -->';
@@ -82,8 +83,4 @@ export class BackgroundInstaller {
 
 function hash(value: string): string { return createHash('sha256').update(value).digest('hex'); }
 function removeBlock(value: string): string { return value.replace(new RegExp(`${START}[\\s\\S]*?${END}\\s*`, 'g'), ''); }
-function allowLocalBridge(value: string): string {
-  return value.replace(/connect-src ([^;\"]*)/g, (full, sources: string) => sources.includes('http://127.0.0.1:*') ? full : `connect-src ${sources} http://127.0.0.1:*`)
-    .replace(/script-src ([^;\"]*)/g, (full, sources: string) => sources.includes('file:') ? full : `script-src ${sources} file:`);
-}
 
