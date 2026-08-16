@@ -14,6 +14,7 @@ export interface StockQuote extends StockRef {
   changePercent: number | null;
   volume: number | null;
   amount: number | null;
+  turnoverRate: number | null;
   suspended: boolean;
 }
 

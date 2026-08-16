@@ -11,7 +11,11 @@ describe('extension contributions', () => {
   it('binds the persistent background toggle to Ctrl+Shift+N', () => {
     const manifest = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as {
       activationEvents: string[];
-      contributes: { commands: Contribution[]; keybindings: Contribution[] };
+      contributes: {
+        commands: Contribution[];
+        keybindings: Contribution[];
+        configuration: { properties: Record<string, { default?: unknown }> };
+      };
     };
 
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.toggleBackgroundVisibility');
@@ -22,5 +26,6 @@ describe('extension contributions', () => {
       command: 'aStockWatch.toggleBackgroundVisibility',
       key: 'ctrl+shift+n'
     });
+    expect(manifest.contributes.configuration.properties['aStockWatch.background.showVolume'].default).toBe(true);
   });
 });

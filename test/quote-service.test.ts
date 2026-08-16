@@ -7,7 +7,7 @@ class FakeProvider implements MarketDataProvider {
   fail = false;
   async fetchQuotes(stocks: StockRef[]): Promise<StockQuote[]> {
     if (this.fail) throw new Error('offline');
-    return stocks.map((stock) => ({ ...stock, name: '测试股票', price: 10, previousClose: 9.5, change: .5, changePercent: 5.26, volume: 100, amount: 1000, suspended: false }));
+    return stocks.map((stock) => ({ ...stock, name: '测试股票', price: 10, previousClose: 9.5, change: .5, changePercent: 5.26, volume: 100, amount: 1000, turnoverRate: 0.83, suspended: false }));
   }
   async fetchIntraday(): Promise<IntradayPoint[]> {
     if (this.fail) throw new Error('offline');

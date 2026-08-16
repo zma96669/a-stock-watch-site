@@ -5,10 +5,11 @@ import { createStockRef } from '../src/market/stock-code';
 describe('EastMoney parser', () => {
   it('parses quote fields', () => {
     const stock = createStockRef('600519');
-    const [quote] = parseQuoteResponse({ data: { diff: [{ f12: '600519', f14: '贵州茅台', f2: 1500.25, f3: 1.2, f4: 17.8, f5: 1234, f6: 2000000, f18: 1482.45 }] } }, [stock]);
+    const [quote] = parseQuoteResponse({ data: { diff: [{ f12: '600519', f14: '贵州茅台', f2: 1500.25, f3: 1.2, f4: 17.8, f5: 1234, f6: 2000000, f8: 0.83, f18: 1482.45 }] } }, [stock]);
     expect(quote.name).toBe('贵州茅台');
     expect(quote.price).toBe(1500.25);
     expect(quote.changePercent).toBe(1.2);
+    expect(quote.turnoverRate).toBe(0.83);
     expect(quote.suspended).toBe(false);
   });
   it('parses trend rows and ignores malformed rows', () => {

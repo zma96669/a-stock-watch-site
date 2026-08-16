@@ -110,7 +110,7 @@ function backgroundOptions(visible: boolean): BackgroundOptions {
     visible,
     opacity: config.get<number>('opacity', .08),
     showAverage: config.get<boolean>('showAverage', true),
-    showVolume: config.get<boolean>('showVolume', false),
+    showVolume: config.get<boolean>('showVolume', true),
     lineWidth: config.get<number>('lineWidth', .75)
   };
 }

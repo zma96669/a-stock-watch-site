@@ -8,11 +8,14 @@ import {
   tradingSessionProgress,
   tradingTimeMarkers
 } from './chart-geometry';
+import { amountBarRatio, amountScale, formatTradingAmount, formatTurnoverRate } from './amount-geometry';
 
-interface Point { time: string; price: number; averagePrice: number; }
+interface Point { time: string; price: number; averagePrice: number; amount: number; }
 interface BackgroundState {
   intraday?: Point[];
   previousClose?: number;
+  currentCode?: string;
+  quotes?: Record<string, { turnoverRate?: number | null }>;
   background?: { visible?: boolean; opacity: number; showAverage: boolean; showVolume: boolean; lineWidth: number };
 }
 
@@ -32,10 +35,10 @@ function start(): void {
   let activePort: number | undefined;
   let eventPort: number | undefined;
   let events: EventSource | undefined;
-  const editors = new Map<HTMLElement, { canvas: HTMLCanvasElement; scale: HTMLDivElement; timeAxis: HTMLDivElement }>();
+  const editors = new Map<HTMLElement, { canvas: HTMLCanvasElement; scale: HTMLDivElement; timeAxis: HTMLDivElement; summary: HTMLDivElement }>();
 
   const style = document.createElement('style');
-  style.textContent = '.a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.a-stock-watch-scale{position:absolute;top:0;bottom:0;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif}.a-stock-watch-scale-label{position:absolute;left:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.12);line-height:12px;color:#858a90;opacity:.24}.a-stock-watch-scale-label.current{font-weight:500;background:rgba(24,24,24,.18);opacity:.36}.a-stock-watch-time-axis{position:absolute;left:0;bottom:2px;height:16px;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif;color:#858a90;opacity:.24}.a-stock-watch-time-label{position:absolute;top:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.1);line-height:12px;transform:translateX(-50%)}.a-stock-watch-time-label.first{transform:none}.a-stock-watch-time-label.last{transform:translateX(-100%)}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}';
+  style.textContent = '.a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.a-stock-watch-scale{position:absolute;top:0;bottom:0;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif}.a-stock-watch-scale-label{position:absolute;left:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.12);line-height:12px;color:#858a90;opacity:.24}.a-stock-watch-scale-label.current{font-weight:500;background:rgba(24,24,24,.18);opacity:.36}.a-stock-watch-time-axis{position:absolute;left:0;bottom:2px;height:16px;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif;color:#858a90;opacity:.24}.a-stock-watch-time-label{position:absolute;top:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.1);line-height:12px;transform:translateX(-50%)}.a-stock-watch-time-label.first{transform:none}.a-stock-watch-time-label.last{transform:translateX(-100%)}.a-stock-watch-activity-summary{position:absolute;bottom:19px;pointer-events:none;z-index:20;text-align:right;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.1);color:#858a90;opacity:.28;font:400 9px system-ui,sans-serif;line-height:12px}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}';
   document.head.appendChild(style);
 
   async function poll(): Promise<void> {
@@ -77,25 +80,33 @@ function start(): void {
       canvas.className = 'a-stock-watch-background';
       const scale = createScale();
       const timeAxis = createTimeAxis();
-      host.append(canvas, scale, timeAxis);
-      editors.set(host, { canvas, scale, timeAxis });
-      new ResizeObserver(() => draw(canvas, scale, timeAxis)).observe(host);
+      const summary = createActivitySummary();
+      host.append(canvas, scale, timeAxis, summary);
+      editors.set(host, { canvas, scale, timeAxis, summary });
+      new ResizeObserver(() => draw(canvas, scale, timeAxis, summary)).observe(host);
     });
     for (const [host] of editors) if (!host.isConnected) editors.delete(host);
   }
 
-  function drawAll(): void { editors.forEach(({ canvas, scale, timeAxis }) => draw(canvas, scale, timeAxis)); }
+  function drawAll(): void { editors.forEach(({ canvas, scale, timeAxis, summary }) => draw(canvas, scale, timeAxis, summary)); }
 
-  function draw(canvas: HTMLCanvasElement, scale: HTMLDivElement, timeAxis: HTMLDivElement): void {
+  function draw(canvas: HTMLCanvasElement, scale: HTMLDivElement, timeAxis: HTMLDivElement, summary: HTMLDivElement): void {
     const visible = state?.background?.visible !== false;
     canvas.style.display = visible ? 'block' : 'none';
     if (!visible) {
       scale.style.display = 'none';
       timeAxis.style.display = 'none';
+      summary.style.display = 'none';
       return;
     }
     const points = (state?.intraday ?? []).filter((point) => Number.isFinite(point.price));
-    if (!points.length) return;
+    if (!points.length) {
+      canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+      scale.style.display = 'none';
+      timeAxis.style.display = 'none';
+      summary.style.display = 'none';
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     const dpr = devicePixelRatio || 1;
     canvas.width = Math.max(1, Math.round(rect.width * dpr));
@@ -113,7 +124,7 @@ function start(): void {
     const minimapLeft = hostRect && minimapRect ? minimapRect.left - hostRect.left : undefined;
     const layout = chartLayout(rect.width, minimapLeft);
     const chartWidth = layout.chartWidth;
-    const options = state?.background ?? { visible: true, opacity: 0.08, showAverage: true, showVolume: false, lineWidth: 0.75 };
+    const options = state?.background ?? { visible: true, opacity: 0.08, showAverage: true, showVolume: true, lineWidth: 0.75 };
     const baseOpacity = clamp(options.opacity, 0.02, 0.25);
     const positions = points.map((point, index) =>
       tradingSessionProgress(point.time) ?? index / Math.max(1, points.length - 1)
@@ -126,6 +137,7 @@ function start(): void {
     const timeMarkers = tradingTimeMarkers();
 
     drawGuideLines(ctx, chartWidth, rect.height, baseOpacity, gridLevels, timeMarkers);
+    if (options.showVolume) drawAmountBars(ctx, points, positions, x, chartWidth, rect.height, baseOpacity);
     drawZeroLine(ctx, chartWidth, zeroY, baseOpacity);
     drawSegmentFill(ctx, segments, x, y, zeroY, baseOpacity);
     drawPriceSegments(ctx, segments, x, y, options.lineWidth, baseOpacity);
@@ -134,6 +146,8 @@ function start(): void {
     drawLatest(ctx, latest, positions.at(-1)!, previousClose, chartWidth, rect.height, x, y, baseOpacity, layout.showScale);
     updatePriceScale(scale, gridLevels, latest, previousClose, layout, rect.height, y);
     updateTimeAxis(timeAxis, layout, rect.height);
+    const turnoverRate = state?.currentCode ? state.quotes?.[state.currentCode]?.turnoverRate : undefined;
+    updateActivitySummary(summary, latest.amount, turnoverRate, options.showVolume, layout, rect.height);
   }
 
   function createScale(): HTMLDivElement {
@@ -160,6 +174,12 @@ function start(): void {
       axis.appendChild(label);
     });
     return axis;
+  }
+
+  function createActivitySummary(): HTMLDivElement {
+    const summary = document.createElement('div');
+    summary.className = 'a-stock-watch-activity-summary';
+    return summary;
   }
 
   function drawGuideLines(
@@ -190,6 +210,32 @@ function start(): void {
       ctx.lineTo(px, height);
       ctx.stroke();
     }
+    ctx.restore();
+  }
+
+  function drawAmountBars(
+    ctx: CanvasRenderingContext2D,
+    points: Point[],
+    positions: number[],
+    x: (position: number) => number,
+    width: number,
+    height: number,
+    opacity: number
+  ): void {
+    const scale = amountScale(points.map((point) => point.amount));
+    if (scale <= 0) return;
+    const baseline = Math.max(1, height - 18);
+    const maxBarHeight = clamp(height * 0.14, 28, 96);
+    const barWidth = clamp(width / 240 * 0.58, 0.75, 3);
+    ctx.save();
+    ctx.globalAlpha = clamp(opacity * 0.5, 0.022, 0.04);
+    ctx.fillStyle = GRAPHITE;
+    points.forEach((point, index) => {
+      const ratio = amountBarRatio(point.amount, scale);
+      if (ratio <= 0) return;
+      const barHeight = Math.max(0.5, ratio * maxBarHeight);
+      ctx.fillRect(x(positions[index]) - barWidth / 2, baseline - barHeight, barWidth, barHeight);
+    });
     ctx.restore();
   }
 
@@ -360,6 +406,24 @@ function start(): void {
     axis.style.display = visible ? 'block' : 'none';
     if (!visible) return;
     axis.style.width = `${layout.chartWidth}px`;
+  }
+
+  function updateActivitySummary(
+    summary: HTMLDivElement,
+    latestAmount: number,
+    turnoverRate: number | null | undefined,
+    show: boolean,
+    layout: ReturnType<typeof chartLayout>,
+    height: number
+  ): void {
+    const visible = show && layout.chartWidth >= 520 && height >= 180;
+    summary.style.display = visible ? 'block' : 'none';
+    if (!visible) return;
+    const width = Math.min(176, layout.chartWidth - 8);
+    summary.style.left = `${Math.max(4, layout.chartWidth - width - 4)}px`;
+    summary.style.width = `${width}px`;
+    const label = `额 ${formatTradingAmount(latestAmount)} · 换 ${formatTurnoverRate(turnoverRate)}`;
+    if (summary.textContent !== label) summary.textContent = label;
   }
 
   function setScaleLabel(

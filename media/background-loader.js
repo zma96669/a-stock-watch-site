@@ -107,6 +107,32 @@
     return delta > 0 ? "up" : delta < 0 ? "down" : "flat";
   }
 
+  // src/background/amount-geometry.ts
+  function amountScale(values) {
+    const sorted = values.filter((value) => Number.isFinite(value) && value > 0).sort((left, right) => left - right);
+    if (!sorted.length) return 0;
+    const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * 0.95) - 1));
+    return sorted[index];
+  }
+  function amountBarRatio(value, scale) {
+    if (!Number.isFinite(value) || value <= 0 || !Number.isFinite(scale) || scale <= 0) return 0;
+    return Math.min(1, value / scale);
+  }
+  function formatTradingAmount(value) {
+    if (value == null || !Number.isFinite(value) || value < 0) return "--";
+    if (value >= 1e8) return `${compact(value / 1e8)}\u4EBF`;
+    if (value >= 1e4) return `${compact(value / 1e4)}\u4E07`;
+    return `${Math.round(value)}\u5143`;
+  }
+  function formatTurnoverRate(value) {
+    if (value == null || !Number.isFinite(value) || value < 0) return "--";
+    return `${value.toFixed(2)}%`;
+  }
+  function compact(value) {
+    const digits = value >= 100 ? 0 : value >= 10 ? 1 : 2;
+    return value.toFixed(digits).replace(/\.0+$|(?<=\.[0-9])0$/, "");
+  }
+
   // src/background/browser-loader.ts
   var GRAPHITE = "#858a90";
   var loaderGlobal = globalThis;
@@ -124,7 +150,7 @@
     let events;
     const editors = /* @__PURE__ */ new Map();
     const style = document.createElement("style");
-    style.textContent = ".a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.a-stock-watch-scale{position:absolute;top:0;bottom:0;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif}.a-stock-watch-scale-label{position:absolute;left:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.12);line-height:12px;color:#858a90;opacity:.24}.a-stock-watch-scale-label.current{font-weight:500;background:rgba(24,24,24,.18);opacity:.36}.a-stock-watch-time-axis{position:absolute;left:0;bottom:2px;height:16px;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif;color:#858a90;opacity:.24}.a-stock-watch-time-label{position:absolute;top:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.1);line-height:12px;transform:translateX(-50%)}.a-stock-watch-time-label.first{transform:none}.a-stock-watch-time-label.last{transform:translateX(-100%)}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}";
+    style.textContent = ".a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.a-stock-watch-scale{position:absolute;top:0;bottom:0;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif}.a-stock-watch-scale-label{position:absolute;left:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.12);line-height:12px;color:#858a90;opacity:.24}.a-stock-watch-scale-label.current{font-weight:500;background:rgba(24,24,24,.18);opacity:.36}.a-stock-watch-time-axis{position:absolute;left:0;bottom:2px;height:16px;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif;color:#858a90;opacity:.24}.a-stock-watch-time-label{position:absolute;top:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.1);line-height:12px;transform:translateX(-50%)}.a-stock-watch-time-label.first{transform:none}.a-stock-watch-time-label.last{transform:translateX(-100%)}.a-stock-watch-activity-summary{position:absolute;bottom:19px;pointer-events:none;z-index:20;text-align:right;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.1);color:#858a90;opacity:.28;font:400 9px system-ui,sans-serif;line-height:12px}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}";
     document.head.appendChild(style);
     async function poll() {
       const ports = activePort ? [activePort] : Array.from({ length: portEnd - portStart + 1 }, (_, index) => portStart + index);
@@ -166,25 +192,33 @@
         canvas.className = "a-stock-watch-background";
         const scale = createScale();
         const timeAxis = createTimeAxis();
-        host.append(canvas, scale, timeAxis);
-        editors.set(host, { canvas, scale, timeAxis });
-        new ResizeObserver(() => draw(canvas, scale, timeAxis)).observe(host);
+        const summary = createActivitySummary();
+        host.append(canvas, scale, timeAxis, summary);
+        editors.set(host, { canvas, scale, timeAxis, summary });
+        new ResizeObserver(() => draw(canvas, scale, timeAxis, summary)).observe(host);
       });
       for (const [host] of editors) if (!host.isConnected) editors.delete(host);
     }
     function drawAll() {
-      editors.forEach(({ canvas, scale, timeAxis }) => draw(canvas, scale, timeAxis));
+      editors.forEach(({ canvas, scale, timeAxis, summary }) => draw(canvas, scale, timeAxis, summary));
     }
-    function draw(canvas, scale, timeAxis) {
+    function draw(canvas, scale, timeAxis, summary) {
       const visible = state?.background?.visible !== false;
       canvas.style.display = visible ? "block" : "none";
       if (!visible) {
         scale.style.display = "none";
         timeAxis.style.display = "none";
+        summary.style.display = "none";
         return;
       }
       const points = (state?.intraday ?? []).filter((point) => Number.isFinite(point.price));
-      if (!points.length) return;
+      if (!points.length) {
+        canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+        scale.style.display = "none";
+        timeAxis.style.display = "none";
+        summary.style.display = "none";
+        return;
+      }
       const rect = canvas.getBoundingClientRect();
       const dpr = devicePixelRatio || 1;
       canvas.width = Math.max(1, Math.round(rect.width * dpr));
@@ -201,7 +235,7 @@
       const minimapLeft = hostRect && minimapRect ? minimapRect.left - hostRect.left : void 0;
       const layout = chartLayout(rect.width, minimapLeft);
       const chartWidth = layout.chartWidth;
-      const options = state?.background ?? { visible: true, opacity: 0.08, showAverage: true, showVolume: false, lineWidth: 0.75 };
+      const options = state?.background ?? { visible: true, opacity: 0.08, showAverage: true, showVolume: true, lineWidth: 0.75 };
       const baseOpacity = clamp(options.opacity, 0.02, 0.25);
       const positions = points.map(
         (point, index) => tradingSessionProgress(point.time) ?? index / Math.max(1, points.length - 1)
@@ -213,6 +247,7 @@
       const gridLevels = priceGridLevels(range.min, range.max, previousClose);
       const timeMarkers = tradingTimeMarkers();
       drawGuideLines(ctx, chartWidth, rect.height, baseOpacity, gridLevels, timeMarkers);
+      if (options.showVolume) drawAmountBars(ctx, points, positions, x, chartWidth, rect.height, baseOpacity);
       drawZeroLine(ctx, chartWidth, zeroY, baseOpacity);
       drawSegmentFill(ctx, segments, x, y, zeroY, baseOpacity);
       drawPriceSegments(ctx, segments, x, y, options.lineWidth, baseOpacity);
@@ -221,6 +256,8 @@
       drawLatest(ctx, latest, positions.at(-1), previousClose, chartWidth, rect.height, x, y, baseOpacity, layout.showScale);
       updatePriceScale(scale, gridLevels, latest, previousClose, layout, rect.height, y);
       updateTimeAxis(timeAxis, layout, rect.height);
+      const turnoverRate = state?.currentCode ? state.quotes?.[state.currentCode]?.turnoverRate : void 0;
+      updateActivitySummary(summary, latest.amount, turnoverRate, options.showVolume, layout, rect.height);
     }
     function createScale() {
       const scale = document.createElement("div");
@@ -246,6 +283,11 @@
       });
       return axis;
     }
+    function createActivitySummary() {
+      const summary = document.createElement("div");
+      summary.className = "a-stock-watch-activity-summary";
+      return summary;
+    }
     function drawGuideLines(ctx, width, height, opacity, levels, timeMarkers) {
       ctx.save();
       ctx.globalAlpha = clamp(opacity * 0.25, 0.012, 0.03);
@@ -267,6 +309,23 @@
         ctx.lineTo(px, height);
         ctx.stroke();
       }
+      ctx.restore();
+    }
+    function drawAmountBars(ctx, points, positions, x, width, height, opacity) {
+      const scale = amountScale(points.map((point) => point.amount));
+      if (scale <= 0) return;
+      const baseline = Math.max(1, height - 18);
+      const maxBarHeight = clamp(height * 0.14, 28, 96);
+      const barWidth = clamp(width / 240 * 0.58, 0.75, 3);
+      ctx.save();
+      ctx.globalAlpha = clamp(opacity * 0.5, 0.022, 0.04);
+      ctx.fillStyle = GRAPHITE;
+      points.forEach((point, index) => {
+        const ratio = amountBarRatio(point.amount, scale);
+        if (ratio <= 0) return;
+        const barHeight = Math.max(0.5, ratio * maxBarHeight);
+        ctx.fillRect(x(positions[index]) - barWidth / 2, baseline - barHeight, barWidth, barHeight);
+      });
       ctx.restore();
     }
     function drawZeroLine(ctx, width, zeroY, opacity) {
@@ -388,6 +447,16 @@
       axis.style.display = visible ? "block" : "none";
       if (!visible) return;
       axis.style.width = `${layout.chartWidth}px`;
+    }
+    function updateActivitySummary(summary, latestAmount, turnoverRate, show, layout, height) {
+      const visible = show && layout.chartWidth >= 520 && height >= 180;
+      summary.style.display = visible ? "block" : "none";
+      if (!visible) return;
+      const width = Math.min(176, layout.chartWidth - 8);
+      summary.style.left = `${Math.max(4, layout.chartWidth - width - 4)}px`;
+      summary.style.width = `${width}px`;
+      const label = `\u989D ${formatTradingAmount(latestAmount)} \xB7 \u6362 ${formatTurnoverRate(turnoverRate)}`;
+      if (summary.textContent !== label) summary.textContent = label;
     }
     function setScaleLabel(scale, role, label, y, textColor, visible = true) {
       const element = scale.querySelector(`[data-role="${role}"]`);

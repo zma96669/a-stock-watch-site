@@ -2,7 +2,7 @@
   "name": "a-stock-watch",
   "displayName": "A股盯盘",
   "description": "在 VS Code 中查看 A 股自选股、实时行情和当日分时图。",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "publisher": "local-dev",
   "license": "MIT",
   "engines": {
@@ -156,8 +156,8 @@
         },
         "aStockWatch.background.showVolume": {
           "type": "boolean",
-          "default": false,
-          "description": "背景图显示成交量"
+          "default": true,
+          "description": "背景图显示每分钟成交额和当前换手率"
         },
         "aStockWatch.background.lineWidth": {
           "type": "number",
