@@ -41,9 +41,9 @@ export interface MarketDataProvider {
 }
 
 export interface BackgroundOptions {
+  visible: boolean;
   opacity: number;
   showAverage: boolean;
   showVolume: boolean;
   lineWidth: number;
 }
-

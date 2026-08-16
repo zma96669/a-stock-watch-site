@@ -1,4 +1,4 @@
-import { createServer, type Server } from 'node:http';
+import { createServer, type Server, type ServerResponse } from 'node:http';
 import { randomBytes } from 'node:crypto';
 
 export interface BridgeInfo {
@@ -14,6 +14,7 @@ export class BackgroundBridge {
   private readonly portStart = 48721;
   private readonly portEnd = 48730;
   private port?: number;
+  private readonly eventClients = new Set<ServerResponse>();
 
   constructor(private readonly state: () => unknown, token?: string) {
     this.token = token ?? randomBytes(24).toString('hex');
@@ -38,7 +39,17 @@ export class BackgroundBridge {
       const server = createServer((request, response) => {
         response.setHeader('Access-Control-Allow-Origin', '*');
         response.setHeader('Cache-Control', 'no-store');
+        if (request.method === 'GET' && request.url === `/${this.token}/events`) {
+          response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+          response.setHeader('Connection', 'keep-alive');
+          response.flushHeaders();
+          response.write('event: ready\ndata: {}\n\n');
+          this.eventClients.add(response);
+          request.once('close', () => this.eventClients.delete(response));
+          return;
+        }
         response.setHeader('Content-Type', 'application/json; charset=utf-8');
+        response.setHeader('Connection', 'close');
         if (request.method !== 'GET' || request.url !== `/${this.token}/state`) {
           response.statusCode = 404;
           response.end(JSON.stringify({ error: 'not found' }));
@@ -60,8 +71,14 @@ export class BackgroundBridge {
     return { token: this.token, portStart: this.portStart, portEnd: this.portEnd, port: this.port };
   }
 
+  notify(): void {
+    for (const client of this.eventClients) client.write('event: change\ndata: {}\n\n');
+  }
+
   async stop(): Promise<void> {
     if (!this.server) return;
+    for (const client of this.eventClients) client.end();
+    this.eventClients.clear();
     const server = this.server;
     this.server = undefined;
     this.port = undefined;

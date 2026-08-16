@@ -8,6 +8,7 @@ import { EastMoneyProvider } from './market/eastmoney-provider';
 import { createStockRef } from './market/stock-code';
 import { QuoteService } from './services/quote-service';
 import { CurrentStockStore } from './state/current-stock-store';
+import { BackgroundVisibilityStore } from './state/background-visibility-store';
 import { WatchlistStore } from './state/watchlist-store';
 import { ChartPanel } from './views/chart-panel';
 import { WatchlistTreeProvider } from './views/watchlist-tree';
@@ -24,6 +25,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
   const watchlist = new WatchlistStore(context.globalState);
   const current = new CurrentStockStore(context.globalState);
+  const backgroundVisibility = new BackgroundVisibilityStore(context.globalState);
   const provider = new EastMoneyProvider();
   service = new QuoteService(
     provider,
@@ -34,7 +36,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const tree = new WatchlistTreeProvider(watchlist, current, service);
   const status = new StatusBarController(current, service);
   const installer = new BackgroundInstaller(context);
-  bridge = new BackgroundBridge(() => ({ ...service?.getSnapshot(), background: backgroundOptions() }), bridgeToken);
+  bridge = new BackgroundBridge(() => ({
+    ...service?.getSnapshot(),
+    background: backgroundOptions(backgroundVisibility.isVisible())
+  }), bridgeToken);
   let bridgeInfo: Awaited<ReturnType<BackgroundBridge['start']>> | undefined;
   try { bridgeInfo = await bridge.start(); } catch (error) { console.warn('A股盯盘背景桥接未启动', error); }
   try { await installer.reconcile(); } catch (error) { console.warn('A股盯盘背景安装状态同步失败', error); }
@@ -66,6 +71,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('aStockWatch.nextStock', () => rotate(1, watchlist, current, tree)),
     vscode.commands.registerCommand('aStockWatch.refresh', () => service?.refreshNow()),
     vscode.commands.registerCommand('aStockWatch.openChart', () => service && ChartPanel.show(context.extensionUri, service)),
+    vscode.commands.registerCommand('aStockWatch.toggleBackgroundVisibility', async () => {
+      await backgroundVisibility.toggle();
+      bridge?.notify();
+    }),
     vscode.commands.registerCommand('aStockWatch.enableBackground', async () => {
       if (!bridgeInfo) bridgeInfo = await bridge?.start();
       if (!bridgeInfo) throw new Error('背景行情桥接启动失败');
@@ -95,13 +104,14 @@ async function rotate(direction: number, watchlist: WatchlistStore, current: Cur
   tree.refresh(); await service?.refreshNow();
 }
 
-function backgroundOptions(): BackgroundOptions {
+function backgroundOptions(visible: boolean): BackgroundOptions {
   const config = vscode.workspace.getConfiguration('aStockWatch.background');
   return {
-    opacity: config.get<number>('opacity', .12),
+    visible,
+    opacity: config.get<number>('opacity', .08),
     showAverage: config.get<boolean>('showAverage', true),
     showVolume: config.get<boolean>('showVolume', false),
-    lineWidth: config.get<number>('lineWidth', 1.5)
+    lineWidth: config.get<number>('lineWidth', .75)
   };
 }
 

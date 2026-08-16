@@ -13,8 +13,10 @@ interface Point { time: string; price: number; averagePrice: number; }
 interface BackgroundState {
   intraday?: Point[];
   previousClose?: number;
-  background?: { opacity: number; showAverage: boolean; showVolume: boolean; lineWidth: number };
+  background?: { visible?: boolean; opacity: number; showAverage: boolean; showVolume: boolean; lineWidth: number };
 }
+
+const GRAPHITE = '#858a90';
 
 const loaderGlobal = globalThis as typeof globalThis & { __aStockWatchBackground?: boolean };
 if (!loaderGlobal.__aStockWatchBackground) {
@@ -28,10 +30,12 @@ function start(): void {
   const portEnd = Number('__PORT_END__');
   let state: BackgroundState | undefined;
   let activePort: number | undefined;
+  let eventPort: number | undefined;
+  let events: EventSource | undefined;
   const editors = new Map<HTMLElement, { canvas: HTMLCanvasElement; scale: HTMLDivElement; timeAxis: HTMLDivElement }>();
 
   const style = document.createElement('style');
-  style.textContent = '.a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.a-stock-watch-scale{position:absolute;top:0;bottom:0;pointer-events:none;z-index:20;font:500 10px system-ui,sans-serif}.a-stock-watch-scale-label{position:absolute;left:0;white-space:nowrap;padding:2px 4px;background:rgba(24,24,24,.48);line-height:12px;color:#8f8f8f}.a-stock-watch-scale-label.current{font-weight:650;background:rgba(24,24,24,.7)}.a-stock-watch-time-axis{position:absolute;left:0;bottom:2px;height:16px;pointer-events:none;z-index:20;font:500 9px system-ui,sans-serif;color:#858585}.a-stock-watch-time-label{position:absolute;top:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.45);line-height:12px;transform:translateX(-50%)}.a-stock-watch-time-label.first{transform:none}.a-stock-watch-time-label.last{transform:translateX(-100%)}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}';
+  style.textContent = '.a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.a-stock-watch-scale{position:absolute;top:0;bottom:0;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif}.a-stock-watch-scale-label{position:absolute;left:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.12);line-height:12px;color:#858a90;opacity:.24}.a-stock-watch-scale-label.current{font-weight:500;background:rgba(24,24,24,.18);opacity:.36}.a-stock-watch-time-axis{position:absolute;left:0;bottom:2px;height:16px;pointer-events:none;z-index:20;font:400 9px system-ui,sans-serif;color:#858a90;opacity:.24}.a-stock-watch-time-label{position:absolute;top:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.1);line-height:12px;transform:translateX(-50%)}.a-stock-watch-time-label.first{transform:none}.a-stock-watch-time-label.last{transform:translateX(-100%)}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}';
   document.head.appendChild(style);
 
   async function poll(): Promise<void> {
@@ -42,12 +46,28 @@ function start(): void {
         if (!response.ok) continue;
         state = await response.json() as BackgroundState;
         activePort = port;
+        connectEvents(port);
         sync();
         drawAll();
         return;
       } catch { /* probe next */ }
     }
     activePort = undefined;
+  }
+
+  function connectEvents(port: number): void {
+    if (events && eventPort === port) return;
+    events?.close();
+    const source = new EventSource(`http://127.0.0.1:${port}/${token}/events`);
+    events = source;
+    eventPort = port;
+    source.addEventListener('change', () => { void poll(); });
+    source.onerror = () => {
+      if (events !== source) return;
+      source.close();
+      events = undefined;
+      eventPort = undefined;
+    };
   }
 
   function sync(): void {
@@ -67,6 +87,13 @@ function start(): void {
   function drawAll(): void { editors.forEach(({ canvas, scale, timeAxis }) => draw(canvas, scale, timeAxis)); }
 
   function draw(canvas: HTMLCanvasElement, scale: HTMLDivElement, timeAxis: HTMLDivElement): void {
+    const visible = state?.background?.visible !== false;
+    canvas.style.display = visible ? 'block' : 'none';
+    if (!visible) {
+      scale.style.display = 'none';
+      timeAxis.style.display = 'none';
+      return;
+    }
     const points = (state?.intraday ?? []).filter((point) => Number.isFinite(point.price));
     if (!points.length) return;
     const rect = canvas.getBoundingClientRect();
@@ -86,8 +113,8 @@ function start(): void {
     const minimapLeft = hostRect && minimapRect ? minimapRect.left - hostRect.left : undefined;
     const layout = chartLayout(rect.width, minimapLeft);
     const chartWidth = layout.chartWidth;
-    const options = state?.background ?? { opacity: 0.12, showAverage: true, showVolume: false, lineWidth: 1.5 };
-    const baseOpacity = clamp(options.opacity, 0.05, 0.35);
+    const options = state?.background ?? { visible: true, opacity: 0.08, showAverage: true, showVolume: false, lineWidth: 0.75 };
+    const baseOpacity = clamp(options.opacity, 0.02, 0.25);
     const positions = points.map((point, index) =>
       tradingSessionProgress(point.time) ?? index / Math.max(1, points.length - 1)
     );
@@ -144,8 +171,8 @@ function start(): void {
     timeMarkers: ReturnType<typeof tradingTimeMarkers>
   ): void {
     ctx.save();
-    ctx.globalAlpha = Math.max(0.11, opacity * 0.8);
-    ctx.strokeStyle = '#8c8c8c';
+    ctx.globalAlpha = clamp(opacity * 0.25, 0.012, 0.03);
+    ctx.strokeStyle = GRAPHITE;
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 7]);
     for (const level of levels) {
@@ -155,7 +182,7 @@ function start(): void {
       ctx.lineTo(width, py);
       ctx.stroke();
     }
-    ctx.globalAlpha = Math.max(0.085, opacity * 0.65);
+    ctx.globalAlpha = clamp(opacity * 0.18, 0.01, 0.024);
     for (const marker of timeMarkers) {
       const px = clamp(marker.position * width, 0.5, width - 0.5);
       ctx.beginPath();
@@ -168,8 +195,8 @@ function start(): void {
 
   function drawZeroLine(ctx: CanvasRenderingContext2D, width: number, zeroY: number, opacity: number): void {
     ctx.save();
-    ctx.globalAlpha = Math.max(0.26, opacity * 1.8);
-    ctx.strokeStyle = '#a0a0a0';
+    ctx.globalAlpha = clamp(opacity * 0.5, 0.028, 0.05);
+    ctx.strokeStyle = GRAPHITE;
     ctx.lineWidth = 1;
     ctx.setLineDash([6, 5]);
     ctx.beginPath();
@@ -188,7 +215,7 @@ function start(): void {
     opacity: number
   ): void {
     ctx.save();
-    ctx.globalAlpha = Math.max(0.018, opacity * 0.2);
+    ctx.globalAlpha = clamp(opacity * 0.05, 0.003, 0.008);
     for (const segment of segments) {
       ctx.beginPath();
       ctx.moveTo(x(segment.fromPosition), zeroY);
@@ -196,7 +223,7 @@ function start(): void {
       ctx.lineTo(x(segment.toPosition), y(segment.toPrice));
       ctx.lineTo(x(segment.toPosition), zeroY);
       ctx.closePath();
-      ctx.fillStyle = color(segment.direction);
+      ctx.fillStyle = GRAPHITE;
       ctx.fill();
     }
     ctx.restore();
@@ -211,13 +238,13 @@ function start(): void {
     opacity: number
   ): void {
     ctx.save();
-    ctx.globalAlpha = Math.max(0.28, opacity * 2.2);
-    ctx.lineWidth = width;
+    ctx.globalAlpha = clamp(opacity * 1.1, 0.06, 0.1);
+    ctx.lineWidth = clamp(width, 0.5, 0.85);
     for (const segment of segments) {
       ctx.beginPath();
       ctx.moveTo(x(segment.fromPosition), y(segment.fromPrice));
       ctx.lineTo(x(segment.toPosition), y(segment.toPrice));
-      ctx.strokeStyle = color(segment.direction);
+      ctx.strokeStyle = GRAPHITE;
       ctx.stroke();
     }
     ctx.restore();
@@ -233,9 +260,9 @@ function start(): void {
     opacity: number
   ): void {
     ctx.save();
-    ctx.globalAlpha = Math.max(0.16, opacity * 1.25);
-    ctx.strokeStyle = '#d7ba7d';
-    ctx.lineWidth = Math.max(1, width * 0.75);
+    ctx.globalAlpha = clamp(opacity * 0.55, 0.03, 0.055);
+    ctx.strokeStyle = '#777b80';
+    ctx.lineWidth = clamp(width * 0.75, 0.45, 0.65);
     ctx.beginPath();
     points.forEach((point, index) => {
       const px = x(positions[index]);
@@ -258,13 +285,12 @@ function start(): void {
     opacity: number,
     scaleVisible: boolean
   ): void {
-    const direction = point.price > previousClose ? 'up' : point.price < previousClose ? 'down' : 'flat';
     const pointX = x(position);
     const pointY = y(point.price);
     const label = formatChangePercent(point.price, previousClose);
     ctx.save();
-    ctx.globalAlpha = Math.max(0.2, opacity * 1.5);
-    ctx.strokeStyle = mutedColor(direction);
+    ctx.globalAlpha = clamp(opacity * 0.7, 0.035, 0.06);
+    ctx.strokeStyle = GRAPHITE;
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 4]);
     const guideStart = pointX + 56 <= chartWidth ? pointX : Math.max(0, pointX - 56);
@@ -274,21 +300,21 @@ function start(): void {
     ctx.lineTo(guideEnd, pointY);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.globalAlpha = Math.max(0.55, opacity * 3.5);
-    ctx.fillStyle = color(direction);
+    ctx.globalAlpha = clamp(opacity * 1.6, 0.1, 0.16);
+    ctx.fillStyle = GRAPHITE;
     ctx.beginPath();
-    ctx.arc(pointX, pointY, 3, 0, Math.PI * 2);
+    ctx.arc(pointX, pointY, 1.75, 0, Math.PI * 2);
     ctx.fill();
     if (!scaleVisible && chartWidth >= 180 && height >= 60) {
       ctx.font = '600 11px system-ui, sans-serif';
       const textWidth = ctx.measureText(label).width;
       const labelX = clamp(pointX - textWidth - 13, 4, chartWidth - textWidth - 8);
       const labelY = clamp(pointY - 20, 4, height - 20);
-      ctx.globalAlpha = 0.72;
+      ctx.globalAlpha = 0.34;
       ctx.fillStyle = '#181818';
       ctx.fillRect(labelX - 4, labelY - 1, textWidth + 8, 16);
-      ctx.globalAlpha = 0.88;
-      ctx.fillStyle = color(direction);
+      ctx.globalAlpha = 0.38;
+      ctx.fillStyle = GRAPHITE;
       ctx.fillText(label, labelX, labelY + 11);
     }
     ctx.restore();
@@ -314,19 +340,19 @@ function start(): void {
     const currentY = avoidLabelCollisions(currentRawY, fixedY, 22, height - 40, latest.price >= previousClose);
     const latestDirection = latest.price > previousClose ? 'up' : latest.price < previousClose ? 'down' : 'flat';
 
-    setScaleLabel(scale, 'top', formatPriceScaleLabel(levels[0].price, previousClose), fixedY[0], '#8f8f8f');
-    setScaleLabel(scale, 'upper', formatPriceScaleLabel(levels[1].price, previousClose), fixedY[1], '#8f8f8f');
+    setScaleLabel(scale, 'top', formatPriceScaleLabel(levels[0].price, previousClose), fixedY[0], GRAPHITE);
+    setScaleLabel(scale, 'upper', formatPriceScaleLabel(levels[1].price, previousClose), fixedY[1], GRAPHITE);
     setScaleLabel(
       scale,
       'current',
       formatPriceScaleLabel(latest.price, previousClose),
       currentY,
-      mutedColor(latestDirection),
+      GRAPHITE,
       latestDirection !== 'flat'
     );
-    setScaleLabel(scale, 'zero', formatPriceScaleLabel(levels[2].price, previousClose), fixedY[2], '#aaa');
-    setScaleLabel(scale, 'lower', formatPriceScaleLabel(levels[3].price, previousClose), fixedY[3], '#8f8f8f');
-    setScaleLabel(scale, 'bottom', formatPriceScaleLabel(levels[4].price, previousClose), fixedY[4], '#8f8f8f');
+    setScaleLabel(scale, 'zero', formatPriceScaleLabel(levels[2].price, previousClose), fixedY[2], GRAPHITE);
+    setScaleLabel(scale, 'lower', formatPriceScaleLabel(levels[3].price, previousClose), fixedY[3], GRAPHITE);
+    setScaleLabel(scale, 'bottom', formatPriceScaleLabel(levels[4].price, previousClose), fixedY[4], GRAPHITE);
   }
 
   function updateTimeAxis(axis: HTMLDivElement, layout: ReturnType<typeof chartLayout>, height: number): void {
@@ -360,14 +386,6 @@ function start(): void {
 
 function validPreviousClose(previousClose: number | undefined, points: Point[]): number {
   return Number.isFinite(previousClose) && previousClose! > 0 ? previousClose! : points[0].price;
-}
-
-function color(direction: 'up' | 'down' | 'flat'): string {
-  return direction === 'up' ? '#f14c4c' : direction === 'down' ? '#89d185' : '#a0a0a0';
-}
-
-function mutedColor(direction: 'up' | 'down' | 'flat'): string {
-  return direction === 'up' ? '#c77b7b' : direction === 'down' ? '#7f9f8a' : '#999';
 }
 
 function avoidLabelCollisions(

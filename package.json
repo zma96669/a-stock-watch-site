@@ -2,7 +2,7 @@
   "name": "a-stock-watch",
   "displayName": "A股盯盘",
   "description": "在 VS Code 中查看 A 股自选股、实时行情和当日分时图。",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "publisher": "local-dev",
   "license": "MIT",
   "engines": {
@@ -22,6 +22,7 @@
   "activationEvents": [
     "onView:aStockWatch.watchlist",
     "onCommand:aStockWatch.openChart",
+    "onCommand:aStockWatch.toggleBackgroundVisibility",
     "onStartupFinished"
   ],
   "scripts": {
@@ -82,6 +83,10 @@
         "title": "A股盯盘：选择股票"
       },
       {
+        "command": "aStockWatch.toggleBackgroundVisibility",
+        "title": "A股盯盘：显示/隐藏行情背景"
+      },
+      {
         "command": "aStockWatch.previousStock",
         "title": "A股盯盘：上一只股票"
       },
@@ -100,6 +105,12 @@
       {
         "command": "aStockWatch.repairBackground",
         "title": "A股盯盘：重新安装背景组件"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "aStockWatch.toggleBackgroundVisibility",
+        "key": "ctrl+shift+n"
       }
     ],
     "menus": {
@@ -133,8 +144,8 @@
         },
         "aStockWatch.background.opacity": {
           "type": "number",
-          "default": 0.12,
-          "minimum": 0.05,
+          "default": 0.08,
+          "minimum": 0.02,
           "maximum": 0.35,
           "description": "实验背景分时图透明度"
         },
@@ -150,7 +161,7 @@
         },
         "aStockWatch.background.lineWidth": {
           "type": "number",
-          "default": 1.5,
+          "default": 0.75,
           "minimum": 0.5,
           "maximum": 4,
           "description": "背景分时线宽度"
