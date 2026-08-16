@@ -125,7 +125,8 @@ function start(): void {
     const layout = chartLayout(rect.width, minimapLeft);
     const chartWidth = layout.chartWidth;
     const options = state?.background ?? { visible: true, opacity: 0.08, showAverage: true, showVolume: true, lineWidth: 0.75 };
-    const baseOpacity = clamp(options.opacity, 0.02, 0.25);
+    const baseOpacity = clamp(options.opacity, 0.02, 0.35);
+    applyOverlayOpacity(scale, timeAxis, summary, baseOpacity);
     const positions = points.map((point, index) =>
       tradingSessionProgress(point.time) ?? index / Math.max(1, points.length - 1)
     );
@@ -191,7 +192,7 @@ function start(): void {
     timeMarkers: ReturnType<typeof tradingTimeMarkers>
   ): void {
     ctx.save();
-    ctx.globalAlpha = clamp(opacity * 0.25, 0.012, 0.03);
+    ctx.globalAlpha = clamp(opacity * 0.25, 0.005, 0.09);
     ctx.strokeStyle = GRAPHITE;
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 7]);
@@ -202,7 +203,7 @@ function start(): void {
       ctx.lineTo(width, py);
       ctx.stroke();
     }
-    ctx.globalAlpha = clamp(opacity * 0.18, 0.01, 0.024);
+    ctx.globalAlpha = clamp(opacity * 0.18, 0.004, 0.065);
     for (const marker of timeMarkers) {
       const px = clamp(marker.position * width, 0.5, width - 0.5);
       ctx.beginPath();
@@ -228,7 +229,7 @@ function start(): void {
     const maxBarHeight = clamp(height * 0.14, 28, 96);
     const barWidth = clamp(width / 240 * 0.58, 0.75, 3);
     ctx.save();
-    ctx.globalAlpha = clamp(opacity * 0.5, 0.022, 0.04);
+    ctx.globalAlpha = clamp(opacity * 0.5, 0.01, 0.18);
     ctx.fillStyle = GRAPHITE;
     points.forEach((point, index) => {
       const ratio = amountBarRatio(point.amount, scale);
@@ -241,7 +242,7 @@ function start(): void {
 
   function drawZeroLine(ctx: CanvasRenderingContext2D, width: number, zeroY: number, opacity: number): void {
     ctx.save();
-    ctx.globalAlpha = clamp(opacity * 0.5, 0.028, 0.05);
+    ctx.globalAlpha = clamp(opacity * 0.5, 0.01, 0.18);
     ctx.strokeStyle = GRAPHITE;
     ctx.lineWidth = 1;
     ctx.setLineDash([6, 5]);
@@ -261,7 +262,7 @@ function start(): void {
     opacity: number
   ): void {
     ctx.save();
-    ctx.globalAlpha = clamp(opacity * 0.05, 0.003, 0.008);
+    ctx.globalAlpha = clamp(opacity * 0.05, 0.001, 0.025);
     for (const segment of segments) {
       ctx.beginPath();
       ctx.moveTo(x(segment.fromPosition), zeroY);
@@ -284,7 +285,7 @@ function start(): void {
     opacity: number
   ): void {
     ctx.save();
-    ctx.globalAlpha = clamp(opacity * 1.1, 0.06, 0.1);
+    ctx.globalAlpha = clamp(opacity * 1.1, 0.022, 0.39);
     ctx.lineWidth = clamp(width, 0.5, 0.85);
     for (const segment of segments) {
       ctx.beginPath();
@@ -306,7 +307,7 @@ function start(): void {
     opacity: number
   ): void {
     ctx.save();
-    ctx.globalAlpha = clamp(opacity * 0.55, 0.03, 0.055);
+    ctx.globalAlpha = clamp(opacity * 0.55, 0.011, 0.2);
     ctx.strokeStyle = '#777b80';
     ctx.lineWidth = clamp(width * 0.75, 0.45, 0.65);
     ctx.beginPath();
@@ -335,7 +336,7 @@ function start(): void {
     const pointY = y(point.price);
     const label = formatChangePercent(point.price, previousClose);
     ctx.save();
-    ctx.globalAlpha = clamp(opacity * 0.7, 0.035, 0.06);
+    ctx.globalAlpha = clamp(opacity * 0.7, 0.014, 0.25);
     ctx.strokeStyle = GRAPHITE;
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 4]);
@@ -346,7 +347,7 @@ function start(): void {
     ctx.lineTo(guideEnd, pointY);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.globalAlpha = clamp(opacity * 1.6, 0.1, 0.16);
+    ctx.globalAlpha = clamp(opacity * 1.6, 0.032, 0.56);
     ctx.fillStyle = GRAPHITE;
     ctx.beginPath();
     ctx.arc(pointX, pointY, 1.75, 0, Math.PI * 2);
@@ -424,6 +425,21 @@ function start(): void {
     summary.style.width = `${width}px`;
     const label = `额 ${formatTradingAmount(latestAmount)} · 换 ${formatTurnoverRate(turnoverRate)}`;
     if (summary.textContent !== label) summary.textContent = label;
+  }
+
+  function applyOverlayOpacity(
+    scale: HTMLDivElement,
+    timeAxis: HTMLDivElement,
+    summary: HTMLDivElement,
+    opacity: number
+  ): void {
+    const factor = clamp(opacity / 0.08, 0.25, 3);
+    scale.querySelectorAll<HTMLElement>('.a-stock-watch-scale-label').forEach((label) => {
+      const baseline = label.classList.contains('current') ? 0.36 : 0.24;
+      label.style.opacity = String(clamp(baseline * factor, 0.06, 0.9));
+    });
+    timeAxis.style.opacity = String(clamp(0.24 * factor, 0.06, 0.72));
+    summary.style.opacity = String(clamp(0.28 * factor, 0.07, 0.84));
   }
 
   function setScaleLabel(

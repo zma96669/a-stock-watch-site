@@ -30,10 +30,13 @@ describe(<span class="string">'A-share market background'</span>, () =&gt; {
     const prices=[100,100.4,99.7,100.8,101.2,100.3,99.4,98.9,99.6,100.2,101,101.6,100.7,99.8,100.5];
     const times=['09:30','09:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','13:00','13:20','13:40','14:00','14:20','14:40'];
     const intraday=prices.map((price,index)=>({time:`2026-08-17 ${times[index]}`,price,averagePrice:100+(index-4)*0.025,amount:(index===4?18:3+index%6)*1000000}));
-    const visible=new URLSearchParams(location.search).get('hidden')!=='1';
+    const previewParams=new URLSearchParams(location.search);
+    const visible=previewParams.get('hidden')!=='1';
+    const requestedOpacity=Number(previewParams.get('opacity'));
+    const opacity=Number.isFinite(requestedOpacity)&&requestedOpacity>0?requestedOpacity:.08;
     const nativeFetch=window.fetch.bind(window);
     nativeFetch('../../media/background-loader.js').then(response=>response.text()).then(source=>{
-      window.fetch=async()=>new Response(JSON.stringify({previousClose:100,currentCode:'600519',quotes:{'600519':{turnoverRate:.83}},intraday,background:{visible,opacity:.08,showAverage:true,showVolume:true,lineWidth:.75}}),{status:200,headers:{'Content-Type':'application/json'}});
+      window.fetch=async()=>new Response(JSON.stringify({previousClose:100,currentCode:'600519',quotes:{'600519':{turnoverRate:.83}},intraday,background:{visible,opacity,showAverage:true,showVolume:true,lineWidth:.75}}),{status:200,headers:{'Content-Type':'application/json'}});
       window.EventSource=class { addEventListener(){} close(){} };
       (0,eval)(source.replaceAll('__TOKEN__','preview').replaceAll('__PORT_START__','48721').replaceAll('__PORT_END__','48721'));
     });

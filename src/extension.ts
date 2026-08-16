@@ -9,6 +9,7 @@ import { createStockRef } from './market/stock-code';
 import { QuoteService } from './services/quote-service';
 import { CurrentStockStore } from './state/current-stock-store';
 import { BackgroundVisibilityStore } from './state/background-visibility-store';
+import { SessionOpacityController } from './state/session-opacity-controller';
 import { WatchlistStore } from './state/watchlist-store';
 import { ChartPanel } from './views/chart-panel';
 import { WatchlistTreeProvider } from './views/watchlist-tree';
@@ -26,6 +27,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const watchlist = new WatchlistStore(context.globalState);
   const current = new CurrentStockStore(context.globalState);
   const backgroundVisibility = new BackgroundVisibilityStore(context.globalState);
+  const sessionOpacity = new SessionOpacityController();
   const provider = new EastMoneyProvider();
   service = new QuoteService(
     provider,
@@ -38,7 +40,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const installer = new BackgroundInstaller(context);
   bridge = new BackgroundBridge(() => ({
     ...service?.getSnapshot(),
-    background: backgroundOptions(backgroundVisibility.isVisible())
+    background: backgroundOptions(backgroundVisibility.isVisible(), sessionOpacity)
   }), bridgeToken);
   let bridgeInfo: Awaited<ReturnType<BackgroundBridge['start']>> | undefined;
   try { bridgeInfo = await bridge.start(); } catch (error) { console.warn('A股盯盘背景桥接未启动', error); }
@@ -72,7 +74,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('aStockWatch.refresh', () => service?.refreshNow()),
     vscode.commands.registerCommand('aStockWatch.openChart', () => service && ChartPanel.show(context.extensionUri, service)),
     vscode.commands.registerCommand('aStockWatch.toggleBackgroundVisibility', async () => {
+      sessionOpacity.reset();
       await backgroundVisibility.toggle();
+      bridge?.notify();
+    }),
+    vscode.commands.registerCommand('aStockWatch.increaseBackgroundOpacity', () => {
+      sessionOpacity.increase(configuredBackgroundOpacity());
+      bridge?.notify();
+    }),
+    vscode.commands.registerCommand('aStockWatch.decreaseBackgroundOpacity', () => {
+      sessionOpacity.decrease(configuredBackgroundOpacity());
       bridge?.notify();
     }),
     vscode.commands.registerCommand('aStockWatch.enableBackground', async () => {
@@ -104,15 +115,19 @@ async function rotate(direction: number, watchlist: WatchlistStore, current: Cur
   tree.refresh(); await service?.refreshNow();
 }
 
-function backgroundOptions(visible: boolean): BackgroundOptions {
+function backgroundOptions(visible: boolean, sessionOpacity: SessionOpacityController): BackgroundOptions {
   const config = vscode.workspace.getConfiguration('aStockWatch.background');
   return {
     visible,
-    opacity: config.get<number>('opacity', .08),
+    opacity: sessionOpacity.effective(config.get<number>('opacity', .08)),
     showAverage: config.get<boolean>('showAverage', true),
     showVolume: config.get<boolean>('showVolume', true),
     lineWidth: config.get<number>('lineWidth', .75)
   };
+}
+
+function configuredBackgroundOpacity(): number {
+  return vscode.workspace.getConfiguration('aStockWatch.background').get<number>('opacity', .08);
 }
 
 function message(error: unknown): string { return error instanceof Error ? error.message : String(error); }

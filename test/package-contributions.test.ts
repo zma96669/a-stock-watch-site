@@ -19,12 +19,22 @@ describe('extension contributions', () => {
     };
 
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.toggleBackgroundVisibility');
+    expect(manifest.activationEvents).toContain('onCommand:aStockWatch.increaseBackgroundOpacity');
+    expect(manifest.activationEvents).toContain('onCommand:aStockWatch.decreaseBackgroundOpacity');
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({
       command: 'aStockWatch.toggleBackgroundVisibility'
     }));
     expect(manifest.contributes.keybindings).toContainEqual({
       command: 'aStockWatch.toggleBackgroundVisibility',
       key: 'ctrl+shift+n'
+    });
+    expect(manifest.contributes.keybindings).toContainEqual({
+      command: 'aStockWatch.increaseBackgroundOpacity',
+      key: 'ctrl+alt+shift+.'
+    });
+    expect(manifest.contributes.keybindings).toContainEqual({
+      command: 'aStockWatch.decreaseBackgroundOpacity',
+      key: 'ctrl+alt+shift+,'
     });
     expect(manifest.contributes.configuration.properties['aStockWatch.background.showVolume'].default).toBe(true);
   });
