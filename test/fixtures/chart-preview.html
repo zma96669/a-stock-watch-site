@@ -7,6 +7,7 @@
     html,body{margin:0;width:100%;height:100%;background:#181818;color:#d4d4d4;font:16px Consolas,monospace}
     .monaco-editor{position:relative;width:1200px;height:720px;overflow:hidden;background:#181818}
     .view-lines{position:relative;z-index:6;padding:28px 48px;line-height:1.65;white-space:pre}
+    .minimap{position:absolute;right:0;top:0;width:96px;height:100%;z-index:7;background:rgba(45,45,45,.35)}
     .keyword{color:#c586c0}.name{color:#4ec9b0}.string{color:#ce9178}
   </style>
 </head>
@@ -23,6 +24,7 @@ describe(<span class="string">'A-share market background'</span>, () =&gt; {
     expect(background.opacity).toBeLessThan(0.4);
   });
 });</div>
+    <div class="minimap"></div>
   </div>
   <script>
     const prices=[100,100.4,99.7,100.8,101.2,100.3,99.4,98.9,99.6,100.2,101,101.6,100.7,99.8,100.5];

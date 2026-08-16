@@ -6,6 +6,23 @@ export interface PriceSegment {
   direction: 'up' | 'down' | 'flat';
 }
 
+export interface ChartLayout {
+  chartWidth: number;
+  scaleLeft: number;
+  scaleRight: number;
+  showScale: boolean;
+}
+
+export function chartLayout(width: number, minimapLeft?: number): ChartLayout {
+  const safeWidth = Math.max(1, width);
+  const hasMinimap = Number.isFinite(minimapLeft) && minimapLeft! > 160 && minimapLeft! < safeWidth;
+  const scaleRight = Math.max(1, (hasMinimap ? minimapLeft! : safeWidth) - 6);
+  const showScale = scaleRight >= 460;
+  const fallbackReserve = safeWidth >= 700 ? 104 : 56;
+  const chartWidth = Math.max(1, showScale ? scaleRight - 112 : safeWidth - fallbackReserve);
+  return { chartWidth, scaleLeft: chartWidth + 8, scaleRight, showScale };
+}
+
 export function symmetricPriceRange(prices: number[], previousClose: number): { min: number; max: number } {
   const valid = prices.filter(Number.isFinite);
   const delta = Math.max(
@@ -79,6 +96,11 @@ export function formatChangePercent(price: number, previousClose: number): strin
   const percent = (price - previousClose) / previousClose * 100;
   const prefix = percent > 0 ? '+' : '';
   return `${prefix}${percent.toFixed(2)}%`;
+}
+
+export function formatPriceScaleLabel(price: number, previousClose: number): string {
+  if (!Number.isFinite(price)) return '--';
+  return `${price.toFixed(2)}  ${formatChangePercent(price, previousClose)}`;
 }
 
 function direction(delta: number): PriceSegment['direction'] {

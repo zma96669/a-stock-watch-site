@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  chartLayout,
   formatChangePercent,
+  formatPriceScaleLabel,
   splitPriceSegments,
   symmetricPriceRange,
   tradingSessionProgress
@@ -33,5 +35,20 @@ describe('chart geometry', () => {
     expect(formatChangePercent(100.51, 100)).toBe('+0.51%');
     expect(formatChangePercent(99.49, 100)).toBe('-0.51%');
     expect(formatChangePercent(100, 100)).toBe('0.00%');
+  });
+
+  it('formats price and percentage for scale labels', () => {
+    expect(formatPriceScaleLabel(121.27, 120.66)).toBe('121.27  +0.51%');
+    expect(formatPriceScaleLabel(120.66, 120.66)).toBe('120.66  0.00%');
+  });
+
+  it('keeps the scale gutter to the left of the minimap', () => {
+    const layout = chartLayout(1400, 1300);
+    expect(layout).toEqual({ chartWidth: 1182, scaleLeft: 1190, scaleRight: 1294, showScale: true });
+    expect(layout.scaleRight).toBeLessThan(1300);
+  });
+
+  it('hides the scale gutter in narrow editors', () => {
+    expect(chartLayout(400).showScale).toBe(false);
   });
 });
