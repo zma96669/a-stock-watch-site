@@ -23,9 +23,8 @@ const vscodeCsp = `<meta
 describe('allowLocalBridge', () => {
   it('patches the multiline CSP used by VS Code 1.110', () => {
     const patched = allowLocalBridge(vscodeCsp);
-    expect(patched).toContain('file:');
     expect(patched).toContain('http://127.0.0.1:*');
-    expect(patched.indexOf('file:')).toBeLessThan(patched.indexOf(';', patched.indexOf('script-src')));
+    expect(patched).not.toContain('file:');
     expect(patched.indexOf('http://127.0.0.1:*')).toBeLessThan(patched.indexOf(';', patched.indexOf('connect-src')));
   });
 

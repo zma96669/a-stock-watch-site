@@ -1,9 +1,5 @@
 export function allowLocalBridge(html: string): string {
-  return addDirectiveSource(
-    addDirectiveSource(html, 'script-src', 'file:'),
-    'connect-src',
-    'http://127.0.0.1:*'
-  );
+  return addDirectiveSource(html, 'connect-src', 'http://127.0.0.1:*');
 }
 
 function addDirectiveSource(html: string, directive: string, source: string): string {
@@ -14,4 +10,3 @@ function addDirectiveSource(html: string, directive: string, source: string): st
     return `${body}\n${indentation}${source}${ending}`;
   });
 }
-

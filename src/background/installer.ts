@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import * as vscode from 'vscode';
 import type { BridgeInfo } from './bridge-server';
+import { loaderPathForWorkbench, loaderScriptTag } from './loader-install';
 import { allowLocalBridge } from './workbench-patch';
 import { workbenchCandidates } from './workbench-paths';
 
@@ -11,7 +10,7 @@ const START = '<!-- ASTOCK_WATCH_BACKGROUND_START -->';
 const END = '<!-- ASTOCK_WATCH_BACKGROUND_END -->';
 const META_KEY = 'aStockWatch.backgroundInstall';
 
-interface InstallMeta { target: string; backup: string; originalHash: string; injectedHash: string; }
+interface InstallMeta { target: string; backup: string; loader?: string; originalHash: string; injectedHash: string; }
 
 export class BackgroundInstaller {
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -28,18 +27,18 @@ export class BackgroundInstaller {
       .replaceAll('__TOKEN__', info.token)
       .replaceAll('__PORT_START__', String(info.portStart))
       .replaceAll('__PORT_END__', String(info.portEnd));
-    const loaderPath = path.join(this.context.globalStorageUri.fsPath, 'background-loader.generated.js');
-    await fs.writeFile(loaderPath, loader, 'utf8');
     const target = await this.findWorkbench();
+    const loaderPath = loaderPathForWorkbench(target);
+    await fs.writeFile(loaderPath, loader, 'utf8');
     const original = await fs.readFile(target, 'utf8');
     const clean = removeBlock(original);
     const backup = `${target}.astock-watch.backup`;
     await fs.writeFile(backup, clean, 'utf8');
     let patched = allowLocalBridge(clean);
-    const block = `${START}\n<script src="${pathToFileURL(loaderPath).href}"></script>\n${END}`;
+    const block = `${START}\n${loaderScriptTag()}\n${END}`;
     patched = patched.includes('</body>') ? patched.replace('</body>', `${block}\n</body>`) : `${patched}\n${block}`;
     await fs.writeFile(target, patched, 'utf8');
-    const meta: InstallMeta = { target, backup, originalHash: hash(clean), injectedHash: hash(patched) };
+    const meta: InstallMeta = { target, backup, loader: loaderPath, originalHash: hash(clean), injectedHash: hash(patched) };
     await this.context.globalState.update(META_KEY, meta);
     await vscode.window.showInformationMessage('背景组件已安装，请重新加载 VS Code 窗口。', '重新加载').then((value) => {
       if (value === '重新加载') void vscode.commands.executeCommand('workbench.action.reloadWindow');
@@ -59,6 +58,7 @@ export class BackgroundInstaller {
     const backup = await fs.readFile(meta.backup, 'utf8');
     if (hash(backup) !== meta.originalHash) throw new Error('背景备份校验失败，未修改 VS Code 文件。');
     await fs.writeFile(meta.target, backup, 'utf8');
+    if (meta.loader) await fs.rm(meta.loader, { force: true });
     await this.context.globalState.update(META_KEY, undefined);
     if (showMessage) {
       await vscode.window.showInformationMessage('背景组件已关闭，请重新加载窗口。', '重新加载').then((value) => {
@@ -83,4 +83,3 @@ export class BackgroundInstaller {
 
 function hash(value: string): string { return createHash('sha256').update(value).digest('hex'); }
 function removeBlock(value: string): string { return value.replace(new RegExp(`${START}[\\s\\S]*?${END}\\s*`, 'g'), ''); }
-
