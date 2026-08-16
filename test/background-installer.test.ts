@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { loaderPathForWorkbench, loaderScriptTag } from '../src/background/loader-install';
+import { isManagedLoaderFileName, loaderFileNameForContent, loaderPathForWorkbench, loaderScriptTag } from '../src/background/loader-install';
 import { workbenchCandidates } from '../src/background/workbench-paths';
 
 describe('workbenchCandidates', () => {
@@ -23,15 +23,19 @@ describe('workbenchCandidates', () => {
 });
 
 describe('same-origin background loader', () => {
-  it('places the loader beside workbench.html', () => {
+  it('places a content-addressed loader beside workbench.html', () => {
     const workbench = path.join('C:', 'VS Code', 'workbench', 'workbench.html');
-    expect(loaderPathForWorkbench(workbench)).toBe(path.join(
-      'C:', 'VS Code', 'workbench', 'a-stock-watch-background-loader.js'
-    ));
+    const fileName = loaderFileNameForContent('loader source');
+    expect(fileName).toMatch(/^a-stock-watch-background-loader\.[a-f0-9]{12}\.js$/);
+    expect(loaderPathForWorkbench(workbench, fileName)).toBe(path.join('C:', 'VS Code', 'workbench', fileName));
+    expect(loaderFileNameForContent('changed source')).not.toBe(fileName);
   });
 
-  it('uses a relative script URL', () => {
-    expect(loaderScriptTag()).toBe('<script src="./a-stock-watch-background-loader.js"></script>');
-    expect(loaderScriptTag()).not.toContain('file://');
+  it('uses a relative cache-busting script URL', () => {
+    const fileName = loaderFileNameForContent('loader source');
+    expect(loaderScriptTag(fileName)).toBe(`<script src="./${fileName}"></script>`);
+    expect(loaderScriptTag(fileName)).not.toContain('file://');
+    expect(isManagedLoaderFileName(fileName)).toBe(true);
+    expect(isManagedLoaderFileName('workbench.js')).toBe(false);
   });
 });

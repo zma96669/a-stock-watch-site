@@ -37,6 +37,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   bridge = new BackgroundBridge(() => ({ ...service?.getSnapshot(), background: backgroundOptions() }), bridgeToken);
   let bridgeInfo: Awaited<ReturnType<BackgroundBridge['start']>> | undefined;
   try { bridgeInfo = await bridge.start(); } catch (error) { console.warn('A股盯盘背景桥接未启动', error); }
+  try { await installer.reconcile(); } catch (error) { console.warn('A股盯盘背景安装状态同步失败', error); }
 
   context.subscriptions.push(
     watchlist, current, tree, status,

@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import * as vscode from 'vscode';
 import type { BridgeInfo } from './bridge-server';
-import { loaderPathForWorkbench, loaderScriptTag } from './loader-install';
+import { isManagedLoaderFileName, loaderFileNameForContent, loaderPathForWorkbench, loaderScriptTag } from './loader-install';
 import { allowLocalBridge } from './workbench-patch';
 import { workbenchCandidates } from './workbench-paths';
 
@@ -28,14 +29,15 @@ export class BackgroundInstaller {
       .replaceAll('__PORT_START__', String(info.portStart))
       .replaceAll('__PORT_END__', String(info.portEnd));
     const target = await this.findWorkbench();
-    const loaderPath = loaderPathForWorkbench(target);
+    const loaderFileName = loaderFileNameForContent(loader);
+    const loaderPath = loaderPathForWorkbench(target, loaderFileName);
     await fs.writeFile(loaderPath, loader, 'utf8');
     const original = await fs.readFile(target, 'utf8');
     const clean = removeBlock(original);
     const backup = `${target}.astock-watch.backup`;
     await fs.writeFile(backup, clean, 'utf8');
     let patched = allowLocalBridge(clean);
-    const block = `${START}\n${loaderScriptTag()}\n${END}`;
+    const block = `${START}\n${loaderScriptTag(loaderFileName)}\n${END}`;
     patched = patched.includes('</body>') ? patched.replace('</body>', `${block}\n</body>`) : `${patched}\n${block}`;
     await fs.writeFile(target, patched, 'utf8');
     const meta: InstallMeta = { target, backup, loader: loaderPath, originalHash: hash(clean), injectedHash: hash(patched) };
@@ -73,6 +75,25 @@ export class BackgroundInstaller {
     await this.enable(info);
   }
 
+  async reconcile(): Promise<void> {
+    const meta = this.context.globalState.get<InstallMeta>(META_KEY);
+    if (!meta) return;
+    const [current, backup] = await Promise.all([
+      fs.readFile(meta.target, 'utf8'),
+      fs.readFile(meta.backup, 'utf8')
+    ]);
+    const clean = removeBlock(current);
+    if (hash(clean) !== meta.originalHash || hash(backup) !== meta.originalHash) return;
+    const fileName = activeLoaderFileName(current);
+    if (!fileName) return;
+    const loader = path.join(path.dirname(meta.target), fileName);
+    try { await fs.access(loader); } catch { return; }
+    if (meta.loader && meta.loader !== loader && canRemoveManagedLoader(meta.loader, meta.target)) {
+      await fs.rm(meta.loader, { force: true });
+    }
+    await this.context.globalState.update(META_KEY, { ...meta, loader, injectedHash: hash(current) });
+  }
+
   private async findWorkbench(): Promise<string> {
     for (const candidate of workbenchCandidates(vscode.env.appRoot)) {
       try { await fs.access(candidate); return candidate; } catch { /* try next */ }
@@ -83,3 +104,13 @@ export class BackgroundInstaller {
 
 function hash(value: string): string { return createHash('sha256').update(value).digest('hex'); }
 function removeBlock(value: string): string { return value.replace(new RegExp(`${START}[\\s\\S]*?${END}\\s*`, 'g'), ''); }
+
+function activeLoaderFileName(value: string): string | undefined {
+  const block = value.match(new RegExp(`${START}[\\s\\S]*?<script src="\\./([^"]+)"></script>[\\s\\S]*?${END}`));
+  const fileName = block?.[1];
+  return fileName && isManagedLoaderFileName(fileName) ? fileName : undefined;
+}
+
+function canRemoveManagedLoader(loader: string, target: string): boolean {
+  return path.dirname(loader) === path.dirname(target) && isManagedLoaderFileName(path.basename(loader));
+}
