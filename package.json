@@ -1,0 +1,114 @@
+{
+  "name": "a-stock-watch",
+  "displayName": "A股盯盘",
+  "description": "在 VS Code 中查看 A 股自选股、实时行情和当日分时图。",
+  "version": "0.1.0",
+  "publisher": "local-dev",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": ["Other", "Visualization"],
+  "keywords": ["A股", "股票", "分时图", "stock"],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:aStockWatch.watchlist",
+    "onCommand:aStockWatch.openChart"
+  ],
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "npm run check && npm run test && npm run build && vsce package --no-dependencies --allow-missing-repository"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aStockWatch",
+          "title": "A股盯盘",
+          "icon": "media/stock.svg"
+        }
+      ]
+    },
+    "views": {
+      "aStockWatch": [
+        {
+          "id": "aStockWatch.watchlist",
+          "name": "自选股"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "aStockWatch.watchlist",
+        "contents": "还没有自选股。\n[添加 A 股](command:aStockWatch.addStock)"
+      }
+    ],
+    "commands": [
+      { "command": "aStockWatch.addStock", "title": "A股盯盘：添加股票", "icon": "$(add)" },
+      { "command": "aStockWatch.removeCurrent", "title": "A股盯盘：删除当前股票", "icon": "$(trash)" },
+      { "command": "aStockWatch.refresh", "title": "A股盯盘：立即刷新", "icon": "$(refresh)" },
+      { "command": "aStockWatch.openChart", "title": "A股盯盘：打开分时图", "icon": "$(graph)" },
+      { "command": "aStockWatch.selectStock", "title": "A股盯盘：选择股票" },
+      { "command": "aStockWatch.previousStock", "title": "A股盯盘：上一只股票" },
+      { "command": "aStockWatch.nextStock", "title": "A股盯盘：下一只股票" },
+      { "command": "aStockWatch.enableBackground", "title": "A股盯盘：启用实验背景模式" },
+      { "command": "aStockWatch.disableBackground", "title": "A股盯盘：关闭实验背景模式" },
+      { "command": "aStockWatch.repairBackground", "title": "A股盯盘：重新安装背景组件" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "aStockWatch.addStock", "when": "view == aStockWatch.watchlist", "group": "navigation@1" },
+        { "command": "aStockWatch.refresh", "when": "view == aStockWatch.watchlist", "group": "navigation@2" },
+        { "command": "aStockWatch.openChart", "when": "view == aStockWatch.watchlist", "group": "navigation@3" }
+      ]
+    },
+    "configuration": {
+      "title": "A股盯盘",
+      "properties": {
+        "aStockWatch.refreshInterval": {
+          "type": "number",
+          "default": 5,
+          "minimum": 3,
+          "maximum": 60,
+          "description": "交易时段行情刷新间隔（秒）"
+        },
+        "aStockWatch.background.opacity": {
+          "type": "number",
+          "default": 0.12,
+          "minimum": 0.05,
+          "maximum": 0.35,
+          "description": "实验背景分时图透明度"
+        },
+        "aStockWatch.background.showAverage": {
+          "type": "boolean",
+          "default": true,
+          "description": "背景图显示均价线"
+        },
+        "aStockWatch.background.showVolume": {
+          "type": "boolean",
+          "default": false,
+          "description": "背景图显示成交量"
+        },
+        "aStockWatch.background.lineWidth": {
+          "type": "number",
+          "default": 1.5,
+          "minimum": 0.5,
+          "maximum": 4,
+          "description": "背景分时线宽度"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.96.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,13 @@
+.git/**
+.gitignore
+.github/**
+.vscode-test/**
+coverage/**
+src/**
+test/**
+docs/**
+chajian-staging/**
+tsconfig.json
+vitest.config.ts
+esbuild.js
+**/*.map
