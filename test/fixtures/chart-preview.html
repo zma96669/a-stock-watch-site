@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>A股盯盘背景预览</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;background:#181818;color:#d4d4d4;font:16px Consolas,monospace}
+    .monaco-editor{position:relative;width:1200px;height:720px;overflow:hidden;background:#181818}
+    .view-lines{position:relative;z-index:6;padding:28px 48px;line-height:1.65;white-space:pre}
+    .keyword{color:#c586c0}.name{color:#4ec9b0}.string{color:#ce9178}
+  </style>
+</head>
+<body>
+  <div class="monaco-editor">
+    <div class="view-lines"><span class="keyword">export async function</span> <span class="name">refreshMarketData</span>() {
+  <span class="keyword">const</span> quote = <span class="keyword">await</span> provider.fetchQuote(<span class="string">'600519'</span>);
+  updateStatusBar(quote);
+  updateIntradayChart(quote);
+}
+
+describe(<span class="string">'A-share market background'</span>, () =&gt; {
+  it(<span class="string">'keeps source code readable'</span>, () =&gt; {
+    expect(background.opacity).toBeLessThan(0.4);
+  });
+});</div>
+  </div>
+  <script>
+    const prices=[100,100.4,99.7,100.8,101.2,100.3,99.4,98.9,99.6,100.2,101,101.6,100.7,99.8,100.5];
+    const times=['09:30','09:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','13:00','13:20','13:40','14:00','14:20','14:40'];
+    const intraday=prices.map((price,index)=>({time:`2026-08-17 ${times[index]}`,price,averagePrice:100+(index-4)*0.025}));
+    const nativeFetch=window.fetch.bind(window);
+    nativeFetch('../../media/background-loader.js').then(response=>response.text()).then(source=>{
+      window.fetch=async()=>new Response(JSON.stringify({previousClose:100,intraday,background:{opacity:.12,showAverage:true,showVolume:false,lineWidth:1.5}}),{status:200,headers:{'Content-Type':'application/json'}});
+      (0,eval)(source.replaceAll('__TOKEN__','preview').replaceAll('__PORT_START__','48721').replaceAll('__PORT_END__','48721'));
+    });
+  </script>
+</body>
+</html>

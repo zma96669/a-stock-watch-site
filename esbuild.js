@@ -1,7 +1,7 @@
 const esbuild = require('esbuild');
 
 const watch = process.argv.includes('--watch');
-const options = {
+const extensionOptions = {
   entryPoints: ['src/extension.ts'],
   bundle: true,
   outfile: 'dist/extension.js',
@@ -13,9 +13,22 @@ const options = {
   logLevel: 'info'
 };
 
-if (watch) {
-  esbuild.context(options).then((context) => context.watch());
-} else {
-  esbuild.build(options).catch(() => process.exit(1));
-}
+const loaderOptions = {
+  entryPoints: ['src/background/browser-loader.ts'],
+  bundle: true,
+  outfile: 'media/background-loader.js',
+  format: 'iife',
+  platform: 'browser',
+  target: 'chrome100',
+  minify: false,
+  logLevel: 'info'
+};
 
+if (watch) {
+  Promise.all([esbuild.context(extensionOptions), esbuild.context(loaderOptions)])
+    .then((contexts) => Promise.all(contexts.map((context) => context.watch())))
+    .catch(() => process.exit(1));
+} else {
+  Promise.all([esbuild.build(extensionOptions), esbuild.build(loaderOptions)])
+    .catch(() => process.exit(1));
+}
