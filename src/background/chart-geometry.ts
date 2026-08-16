@@ -13,6 +13,36 @@ export interface ChartLayout {
   showScale: boolean;
 }
 
+export interface GridMarker {
+  position: number;
+  label: string;
+}
+
+export interface PriceGridLevel {
+  position: number;
+  price: number;
+}
+
+export function priceGridLevels(min: number, max: number, previousClose: number): PriceGridLevel[] {
+  return [
+    { position: 0, price: max },
+    { position: 0.25, price: (max + previousClose) / 2 },
+    { position: 0.5, price: previousClose },
+    { position: 0.75, price: (min + previousClose) / 2 },
+    { position: 1, price: min }
+  ];
+}
+
+export function tradingTimeMarkers(): GridMarker[] {
+  return [
+    { position: 0, label: '09:30' },
+    { position: 0.25, label: '10:30' },
+    { position: 0.5, label: '11:30/13:00' },
+    { position: 0.75, label: '14:00' },
+    { position: 1, label: '15:00' }
+  ];
+}
+
 export function chartLayout(width: number, minimapLeft?: number): ChartLayout {
   const safeWidth = Math.max(1, width);
   const hasMinimap = Number.isFinite(minimapLeft) && minimapLeft! > 160 && minimapLeft! < safeWidth;

@@ -3,8 +3,10 @@ import {
   chartLayout,
   formatChangePercent,
   formatPriceScaleLabel,
+  priceGridLevels,
   splitPriceSegments,
   symmetricPriceRange,
+  tradingTimeMarkers,
   tradingSessionProgress
 } from '../src/background/chart-geometry';
 
@@ -50,5 +52,25 @@ describe('chart geometry', () => {
 
   it('hides the scale gutter in narrow editors', () => {
     expect(chartLayout(400).showScale).toBe(false);
+  });
+
+  it('builds five symmetric price grid levels', () => {
+    expect(priceGridLevels(98, 102, 100)).toEqual([
+      { position: 0, price: 102 },
+      { position: 0.25, price: 101 },
+      { position: 0.5, price: 100 },
+      { position: 0.75, price: 99 },
+      { position: 1, price: 98 }
+    ]);
+  });
+
+  it('marks four A-share trading-time segments', () => {
+    expect(tradingTimeMarkers()).toEqual([
+      { position: 0, label: '09:30' },
+      { position: 0.25, label: '10:30' },
+      { position: 0.5, label: '11:30/13:00' },
+      { position: 0.75, label: '14:00' },
+      { position: 1, label: '15:00' }
+    ]);
   });
 });

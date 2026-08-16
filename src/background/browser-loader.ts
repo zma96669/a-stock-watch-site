@@ -2,9 +2,11 @@ import {
   chartLayout,
   formatChangePercent,
   formatPriceScaleLabel,
+  priceGridLevels,
   splitPriceSegments,
   symmetricPriceRange,
-  tradingSessionProgress
+  tradingSessionProgress,
+  tradingTimeMarkers
 } from './chart-geometry';
 
 interface Point { time: string; price: number; averagePrice: number; }
@@ -26,10 +28,10 @@ function start(): void {
   const portEnd = Number('__PORT_END__');
   let state: BackgroundState | undefined;
   let activePort: number | undefined;
-  const editors = new Map<HTMLElement, { canvas: HTMLCanvasElement; scale: HTMLDivElement }>();
+  const editors = new Map<HTMLElement, { canvas: HTMLCanvasElement; scale: HTMLDivElement; timeAxis: HTMLDivElement }>();
 
   const style = document.createElement('style');
-  style.textContent = '.a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.a-stock-watch-scale{position:absolute;top:0;bottom:0;pointer-events:none;z-index:20;font:500 10px system-ui,sans-serif}.a-stock-watch-scale-label{position:absolute;left:0;white-space:nowrap;padding:2px 4px;background:rgba(24,24,24,.78);line-height:12px}.a-stock-watch-scale-label.current{font-weight:700;background:rgba(24,24,24,.9)}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}';
+  style.textContent = '.a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.a-stock-watch-scale{position:absolute;top:0;bottom:0;pointer-events:none;z-index:20;font:500 10px system-ui,sans-serif}.a-stock-watch-scale-label{position:absolute;left:0;white-space:nowrap;padding:2px 4px;background:rgba(24,24,24,.48);line-height:12px;color:#8f8f8f}.a-stock-watch-scale-label.current{font-weight:650;background:rgba(24,24,24,.7)}.a-stock-watch-time-axis{position:absolute;left:0;bottom:2px;height:16px;pointer-events:none;z-index:20;font:500 9px system-ui,sans-serif;color:#858585}.a-stock-watch-time-label{position:absolute;top:0;white-space:nowrap;padding:1px 3px;background:rgba(24,24,24,.45);line-height:12px;transform:translateX(-50%)}.a-stock-watch-time-label.first{transform:none}.a-stock-watch-time-label.last{transform:translateX(-100%)}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}';
   document.head.appendChild(style);
 
   async function poll(): Promise<void> {
@@ -54,16 +56,17 @@ function start(): void {
       const canvas = document.createElement('canvas');
       canvas.className = 'a-stock-watch-background';
       const scale = createScale();
-      host.append(canvas, scale);
-      editors.set(host, { canvas, scale });
-      new ResizeObserver(() => draw(canvas, scale)).observe(host);
+      const timeAxis = createTimeAxis();
+      host.append(canvas, scale, timeAxis);
+      editors.set(host, { canvas, scale, timeAxis });
+      new ResizeObserver(() => draw(canvas, scale, timeAxis)).observe(host);
     });
     for (const [host] of editors) if (!host.isConnected) editors.delete(host);
   }
 
-  function drawAll(): void { editors.forEach(({ canvas, scale }) => draw(canvas, scale)); }
+  function drawAll(): void { editors.forEach(({ canvas, scale, timeAxis }) => draw(canvas, scale, timeAxis)); }
 
-  function draw(canvas: HTMLCanvasElement, scale: HTMLDivElement): void {
+  function draw(canvas: HTMLCanvasElement, scale: HTMLDivElement, timeAxis: HTMLDivElement): void {
     const points = (state?.intraday ?? []).filter((point) => Number.isFinite(point.price));
     if (!points.length) return;
     const rect = canvas.getBoundingClientRect();
@@ -92,21 +95,24 @@ function start(): void {
     const y = (price: number) => (range.max - price) / (range.max - range.min) * rect.height;
     const zeroY = y(previousClose);
     const segments = splitPriceSegments(points.map((point) => point.price), positions, previousClose);
+    const gridLevels = priceGridLevels(range.min, range.max, previousClose);
+    const timeMarkers = tradingTimeMarkers();
 
-    drawGuideLines(ctx, chartWidth, rect.height, baseOpacity);
+    drawGuideLines(ctx, chartWidth, rect.height, baseOpacity, gridLevels, timeMarkers);
     drawZeroLine(ctx, chartWidth, zeroY, baseOpacity);
     drawSegmentFill(ctx, segments, x, y, zeroY, baseOpacity);
     drawPriceSegments(ctx, segments, x, y, options.lineWidth, baseOpacity);
     if (options.showAverage) drawAverage(ctx, points, positions, x, y, options.lineWidth, baseOpacity);
     const latest = points.at(-1)!;
     drawLatest(ctx, latest, positions.at(-1)!, previousClose, chartWidth, rect.height, x, y, baseOpacity, layout.showScale);
-    updatePriceScale(scale, range, latest, previousClose, layout, rect.height, y);
+    updatePriceScale(scale, gridLevels, latest, previousClose, layout, rect.height, y);
+    updateTimeAxis(timeAxis, layout, rect.height);
   }
 
   function createScale(): HTMLDivElement {
     const scale = document.createElement('div');
     scale.className = 'a-stock-watch-scale';
-    for (const role of ['top', 'current', 'zero', 'bottom']) {
+    for (const role of ['top', 'upper', 'current', 'zero', 'lower', 'bottom']) {
       const label = document.createElement('div');
       label.className = `a-stock-watch-scale-label ${role}`;
       label.dataset.role = role;
@@ -115,16 +121,46 @@ function start(): void {
     return scale;
   }
 
-  function drawGuideLines(ctx: CanvasRenderingContext2D, width: number, height: number, opacity: number): void {
+  function createTimeAxis(): HTMLDivElement {
+    const axis = document.createElement('div');
+    axis.className = 'a-stock-watch-time-axis';
+    const markers = tradingTimeMarkers();
+    markers.forEach((marker, index) => {
+      const label = document.createElement('div');
+      label.className = `a-stock-watch-time-label${index === 0 ? ' first' : index === markers.length - 1 ? ' last' : ''}`;
+      label.style.left = `${marker.position * 100}%`;
+      label.textContent = marker.label;
+      axis.appendChild(label);
+    });
+    return axis;
+  }
+
+  function drawGuideLines(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    opacity: number,
+    levels: ReturnType<typeof priceGridLevels>,
+    timeMarkers: ReturnType<typeof tradingTimeMarkers>
+  ): void {
     ctx.save();
-    ctx.globalAlpha = Math.max(0.08, opacity * 0.65);
+    ctx.globalAlpha = Math.max(0.11, opacity * 0.8);
     ctx.strokeStyle = '#8c8c8c';
     ctx.lineWidth = 1;
-    ctx.setLineDash([2, 8]);
-    for (const ratio of [0.25, 0.75]) {
+    ctx.setLineDash([2, 7]);
+    for (const level of levels) {
+      const py = clamp(level.position * height, 0.5, height - 0.5);
       ctx.beginPath();
-      ctx.moveTo(0, height * ratio);
-      ctx.lineTo(width, height * ratio);
+      ctx.moveTo(0, py);
+      ctx.lineTo(width, py);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = Math.max(0.085, opacity * 0.65);
+    for (const marker of timeMarkers) {
+      const px = clamp(marker.position * width, 0.5, width - 0.5);
+      ctx.beginPath();
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, height);
       ctx.stroke();
     }
     ctx.restore();
@@ -227,6 +263,17 @@ function start(): void {
     const pointY = y(point.price);
     const label = formatChangePercent(point.price, previousClose);
     ctx.save();
+    ctx.globalAlpha = Math.max(0.2, opacity * 1.5);
+    ctx.strokeStyle = mutedColor(direction);
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    const guideStart = pointX + 56 <= chartWidth ? pointX : Math.max(0, pointX - 56);
+    const guideEnd = pointX + 56 <= chartWidth ? pointX + 56 : pointX;
+    ctx.beginPath();
+    ctx.moveTo(guideStart, pointY);
+    ctx.lineTo(guideEnd, pointY);
+    ctx.stroke();
+    ctx.setLineDash([]);
     ctx.globalAlpha = Math.max(0.55, opacity * 3.5);
     ctx.fillStyle = color(direction);
     ctx.beginPath();
@@ -249,7 +296,7 @@ function start(): void {
 
   function updatePriceScale(
     scale: HTMLDivElement,
-    range: { min: number; max: number },
+    levels: ReturnType<typeof priceGridLevels>,
     latest: Point,
     previousClose: number,
     layout: ReturnType<typeof chartLayout>,
@@ -261,24 +308,32 @@ function start(): void {
     scale.style.left = `${layout.scaleLeft}px`;
     scale.style.width = `${Math.max(1, layout.scaleRight - layout.scaleLeft)}px`;
 
-    const zeroY = clamp(y(previousClose) - 8, 22, height - 40);
+    const fixedY = [4, height * 0.25 - 7, height * 0.5 - 8, height * 0.75 - 7, Math.max(4, height - 20)];
+    const zeroY = fixedY[2];
     const currentRawY = clamp(y(latest.price) - 8, 22, height - 40);
-    const currentY = Math.abs(currentRawY - zeroY) < 20
-      ? clamp(currentRawY + (latest.price >= previousClose ? -22 : 22), 22, height - 40)
-      : currentRawY;
+    const currentY = avoidLabelCollisions(currentRawY, fixedY, 22, height - 40, latest.price >= previousClose);
     const latestDirection = latest.price > previousClose ? 'up' : latest.price < previousClose ? 'down' : 'flat';
 
-    setScaleLabel(scale, 'top', formatPriceScaleLabel(range.max, previousClose), 4, '#f14c4c');
+    setScaleLabel(scale, 'top', formatPriceScaleLabel(levels[0].price, previousClose), fixedY[0], '#8f8f8f');
+    setScaleLabel(scale, 'upper', formatPriceScaleLabel(levels[1].price, previousClose), fixedY[1], '#8f8f8f');
     setScaleLabel(
       scale,
       'current',
       formatPriceScaleLabel(latest.price, previousClose),
       currentY,
-      color(latestDirection),
+      mutedColor(latestDirection),
       latestDirection !== 'flat'
     );
-    setScaleLabel(scale, 'zero', formatPriceScaleLabel(previousClose, previousClose), zeroY, '#b8b8b8');
-    setScaleLabel(scale, 'bottom', formatPriceScaleLabel(range.min, previousClose), Math.max(4, height - 20), '#89d185');
+    setScaleLabel(scale, 'zero', formatPriceScaleLabel(levels[2].price, previousClose), fixedY[2], '#aaa');
+    setScaleLabel(scale, 'lower', formatPriceScaleLabel(levels[3].price, previousClose), fixedY[3], '#8f8f8f');
+    setScaleLabel(scale, 'bottom', formatPriceScaleLabel(levels[4].price, previousClose), fixedY[4], '#8f8f8f');
+  }
+
+  function updateTimeAxis(axis: HTMLDivElement, layout: ReturnType<typeof chartLayout>, height: number): void {
+    const visible = layout.chartWidth >= 520 && height >= 160;
+    axis.style.display = visible ? 'block' : 'none';
+    if (!visible) return;
+    axis.style.width = `${layout.chartWidth}px`;
   }
 
   function setScaleLabel(
@@ -309,6 +364,28 @@ function validPreviousClose(previousClose: number | undefined, points: Point[]):
 
 function color(direction: 'up' | 'down' | 'flat'): string {
   return direction === 'up' ? '#f14c4c' : direction === 'down' ? '#89d185' : '#a0a0a0';
+}
+
+function mutedColor(direction: 'up' | 'down' | 'flat'): string {
+  return direction === 'up' ? '#c77b7b' : direction === 'down' ? '#7f9f8a' : '#999';
+}
+
+function avoidLabelCollisions(
+  preferred: number,
+  fixed: number[],
+  min: number,
+  max: number,
+  preferDown: boolean
+): number {
+  let position = clamp(preferred, min, max);
+  for (let attempt = 0; attempt < fixed.length + 1; attempt += 1) {
+    const collision = fixed.find((value) => Math.abs(position - value) < 17);
+    if (collision === undefined) return position;
+    const down = collision + 18;
+    const up = collision - 18;
+    position = preferDown && down <= max ? down : up >= min ? up : clamp(down, min, max);
+  }
+  return position;
 }
 
 function clamp(value: number, min: number, max: number): number {
