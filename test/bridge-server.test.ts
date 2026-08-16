@@ -14,5 +14,11 @@ describe('BackgroundBridge', () => {
     const invalid = await fetch(`http://127.0.0.1:${info.port}/wrong/state`);
     expect(invalid.status).toBe(404);
   });
+
+  it('reuses a supplied token across extension activations', async () => {
+    bridge = new BackgroundBridge(() => ({ ok: true }), 'persistent-token');
+    const info = await bridge.start();
+    expect(info.token).toBe('persistent-token');
+  });
 });
 

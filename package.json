@@ -2,7 +2,7 @@
   "name": "a-stock-watch",
   "displayName": "A股盯盘",
   "description": "在 VS Code 中查看 A 股自选股、实时行情和当日分时图。",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "local-dev",
   "license": "MIT",
   "engines": {
@@ -21,7 +21,8 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onView:aStockWatch.watchlist",
-    "onCommand:aStockWatch.openChart"
+    "onCommand:aStockWatch.openChart",
+    "onStartupFinished"
   ],
   "scripts": {
     "build": "node esbuild.js",

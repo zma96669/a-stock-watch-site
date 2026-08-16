@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import { BackgroundBridge } from './background/bridge-server';
 import { BackgroundInstaller } from './background/installer';
@@ -13,8 +14,14 @@ import { WatchlistTreeProvider } from './views/watchlist-tree';
 
 let service: QuoteService | undefined;
 let bridge: BackgroundBridge | undefined;
+const BACKGROUND_TOKEN_KEY = 'aStockWatch.backgroundBridgeToken';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  let bridgeToken = context.globalState.get<string>(BACKGROUND_TOKEN_KEY);
+  if (!bridgeToken) {
+    bridgeToken = randomBytes(24).toString('hex');
+    await context.globalState.update(BACKGROUND_TOKEN_KEY, bridgeToken);
+  }
   const watchlist = new WatchlistStore(context.globalState);
   const current = new CurrentStockStore(context.globalState);
   const provider = new EastMoneyProvider();
@@ -27,7 +34,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const tree = new WatchlistTreeProvider(watchlist, current, service);
   const status = new StatusBarController(current, service);
   const installer = new BackgroundInstaller(context);
-  bridge = new BackgroundBridge(() => ({ ...service?.getSnapshot(), background: backgroundOptions() }));
+  bridge = new BackgroundBridge(() => ({ ...service?.getSnapshot(), background: backgroundOptions() }), bridgeToken);
   let bridgeInfo: Awaited<ReturnType<BackgroundBridge['start']>> | undefined;
   try { bridgeInfo = await bridge.start(); } catch (error) { console.warn('A股盯盘背景桥接未启动', error); }
 

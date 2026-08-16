@@ -10,12 +10,14 @@ export interface BridgeInfo {
 
 export class BackgroundBridge {
   private server?: Server;
-  private readonly token = randomBytes(24).toString('hex');
+  private readonly token: string;
   private readonly portStart = 48721;
   private readonly portEnd = 48730;
   private port?: number;
 
-  constructor(private readonly state: () => unknown) {}
+  constructor(private readonly state: () => unknown, token?: string) {
+    this.token = token ?? randomBytes(24).toString('hex');
+  }
 
   async start(): Promise<BridgeInfo> {
     if (this.server && this.port) return this.info();
