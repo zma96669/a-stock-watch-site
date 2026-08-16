@@ -26,10 +26,10 @@ function start(): void {
   const portEnd = Number('__PORT_END__');
   let state: BackgroundState | undefined;
   let activePort: number | undefined;
-  const canvases = new Map<HTMLElement, HTMLCanvasElement>();
+  const editors = new Map<HTMLElement, { canvas: HTMLCanvasElement; scale: HTMLDivElement }>();
 
   const style = document.createElement('style');
-  style.textContent = '.a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}';
+  style.textContent = '.a-stock-watch-background{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}.a-stock-watch-scale{position:absolute;top:0;bottom:0;pointer-events:none;z-index:20;font:500 10px system-ui,sans-serif}.a-stock-watch-scale-label{position:absolute;left:0;white-space:nowrap;padding:2px 4px;background:rgba(24,24,24,.78);line-height:12px}.a-stock-watch-scale-label.current{font-weight:700;background:rgba(24,24,24,.9)}.monaco-editor .view-lines,.monaco-editor .margin-view-overlays{position:relative;z-index:6}';
   document.head.appendChild(style);
 
   async function poll(): Promise<void> {
@@ -50,19 +50,20 @@ function start(): void {
 
   function sync(): void {
     document.querySelectorAll<HTMLElement>('.monaco-editor').forEach((host) => {
-      if (canvases.has(host)) return;
+      if (editors.has(host)) return;
       const canvas = document.createElement('canvas');
       canvas.className = 'a-stock-watch-background';
-      host.appendChild(canvas);
-      canvases.set(host, canvas);
-      new ResizeObserver(() => draw(canvas)).observe(host);
+      const scale = createScale();
+      host.append(canvas, scale);
+      editors.set(host, { canvas, scale });
+      new ResizeObserver(() => draw(canvas, scale)).observe(host);
     });
-    for (const [host] of canvases) if (!host.isConnected) canvases.delete(host);
+    for (const [host] of editors) if (!host.isConnected) editors.delete(host);
   }
 
-  function drawAll(): void { canvases.forEach(draw); }
+  function drawAll(): void { editors.forEach(({ canvas, scale }) => draw(canvas, scale)); }
 
-  function draw(canvas: HTMLCanvasElement): void {
+  function draw(canvas: HTMLCanvasElement, scale: HTMLDivElement): void {
     const points = (state?.intraday ?? []).filter((point) => Number.isFinite(point.price));
     if (!points.length) return;
     const rect = canvas.getBoundingClientRect();
@@ -99,7 +100,19 @@ function start(): void {
     if (options.showAverage) drawAverage(ctx, points, positions, x, y, options.lineWidth, baseOpacity);
     const latest = points.at(-1)!;
     drawLatest(ctx, latest, positions.at(-1)!, previousClose, chartWidth, rect.height, x, y, baseOpacity, layout.showScale);
-    if (layout.showScale) drawPriceScale(ctx, range, latest, previousClose, layout, rect.height, y, baseOpacity);
+    updatePriceScale(scale, range, latest, previousClose, layout, rect.height, y);
+  }
+
+  function createScale(): HTMLDivElement {
+    const scale = document.createElement('div');
+    scale.className = 'a-stock-watch-scale';
+    for (const role of ['top', 'current', 'zero', 'bottom']) {
+      const label = document.createElement('div');
+      label.className = `a-stock-watch-scale-label ${role}`;
+      label.dataset.role = role;
+      scale.appendChild(label);
+    }
+    return scale;
   }
 
   function drawGuideLines(ctx: CanvasRenderingContext2D, width: number, height: number, opacity: number): void {
@@ -234,25 +247,19 @@ function start(): void {
     ctx.restore();
   }
 
-  function drawPriceScale(
-    ctx: CanvasRenderingContext2D,
+  function updatePriceScale(
+    scale: HTMLDivElement,
     range: { min: number; max: number },
     latest: Point,
     previousClose: number,
     layout: ReturnType<typeof chartLayout>,
     height: number,
-    y: (price: number) => number,
-    opacity: number
+    y: (price: number) => number
   ): void {
-    ctx.save();
-    ctx.globalAlpha = Math.max(0.18, opacity * 1.5);
-    ctx.strokeStyle = '#777';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(layout.chartWidth + 3, 0);
-    ctx.lineTo(layout.chartWidth + 3, height);
-    ctx.stroke();
-    ctx.restore();
+    scale.style.display = layout.showScale ? 'block' : 'none';
+    if (!layout.showScale) return;
+    scale.style.left = `${layout.scaleLeft}px`;
+    scale.style.width = `${Math.max(1, layout.scaleRight - layout.scaleLeft)}px`;
 
     const zeroY = clamp(y(previousClose) - 8, 22, height - 40);
     const currentRawY = clamp(y(latest.price) - 8, 22, height - 40);
@@ -261,32 +268,33 @@ function start(): void {
       : currentRawY;
     const latestDirection = latest.price > previousClose ? 'up' : latest.price < previousClose ? 'down' : 'flat';
 
-    drawScaleLabel(ctx, formatPriceScaleLabel(range.max, previousClose), layout.scaleLeft, 4, '#f14c4c');
-    if (latestDirection !== 'flat') {
-      drawScaleLabel(ctx, formatPriceScaleLabel(latest.price, previousClose), layout.scaleLeft, currentY, color(latestDirection), true);
-    }
-    drawScaleLabel(ctx, formatPriceScaleLabel(previousClose, previousClose), layout.scaleLeft, zeroY, '#b8b8b8');
-    drawScaleLabel(ctx, formatPriceScaleLabel(range.min, previousClose), layout.scaleLeft, Math.max(4, height - 20), '#89d185');
+    setScaleLabel(scale, 'top', formatPriceScaleLabel(range.max, previousClose), 4, '#f14c4c');
+    setScaleLabel(
+      scale,
+      'current',
+      formatPriceScaleLabel(latest.price, previousClose),
+      currentY,
+      color(latestDirection),
+      latestDirection !== 'flat'
+    );
+    setScaleLabel(scale, 'zero', formatPriceScaleLabel(previousClose, previousClose), zeroY, '#b8b8b8');
+    setScaleLabel(scale, 'bottom', formatPriceScaleLabel(range.min, previousClose), Math.max(4, height - 20), '#89d185');
   }
 
-  function drawScaleLabel(
-    ctx: CanvasRenderingContext2D,
+  function setScaleLabel(
+    scale: HTMLDivElement,
+    role: string,
     label: string,
-    x: number,
     y: number,
     textColor: string,
-    emphasize = false
+    visible = true
   ): void {
-    ctx.save();
-    ctx.font = `${emphasize ? 600 : 500} 10px system-ui, sans-serif`;
-    const width = ctx.measureText(label).width;
-    ctx.globalAlpha = emphasize ? 0.84 : 0.68;
-    ctx.fillStyle = '#181818';
-    ctx.fillRect(x - 4, y - 1, width + 8, 16);
-    ctx.globalAlpha = emphasize ? 0.96 : 0.78;
-    ctx.fillStyle = textColor;
-    ctx.fillText(label, x, y + 11);
-    ctx.restore();
+    const element = scale.querySelector<HTMLElement>(`[data-role="${role}"]`);
+    if (!element) return;
+    element.style.display = visible ? 'block' : 'none';
+    element.style.top = `${y}px`;
+    element.style.color = textColor;
+    if (element.textContent !== label) element.textContent = label;
   }
 
   new MutationObserver(() => { sync(); drawAll(); }).observe(document.body, { childList: true, subtree: true });
