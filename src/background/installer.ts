@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as vscode from 'vscode';
 import type { BridgeInfo } from './bridge-server';
+import { workbenchCandidates } from './workbench-paths';
 
 const START = '<!-- ASTOCK_WATCH_BACKGROUND_START -->';
 const END = '<!-- ASTOCK_WATCH_BACKGROUND_END -->';
@@ -72,11 +73,7 @@ export class BackgroundInstaller {
   }
 
   private async findWorkbench(): Promise<string> {
-    const candidates = [
-      path.join(vscode.env.appRoot, 'out', 'vs', 'code', 'electron-sandbox', 'workbench', 'workbench.html'),
-      path.join(vscode.env.appRoot, 'out', 'vs', 'code', 'electron-sandbox', 'workbench', 'workbench-dev.html')
-    ];
-    for (const candidate of candidates) {
+    for (const candidate of workbenchCandidates(vscode.env.appRoot)) {
       try { await fs.access(candidate); return candidate; } catch { /* try next */ }
     }
     throw new Error('未找到当前 VS Code 的工作台文件，稳定模式仍可正常使用。');
