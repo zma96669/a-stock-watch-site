@@ -35,7 +35,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     provider,
     () => watchlist.getAll(),
     () => current.get(),
-    () => vscode.workspace.getConfiguration('aStockWatch').get<number>('refreshInterval', 5)
+    () => vscode.workspace.getConfiguration('aStockWatch').get<number>('refreshInterval', 2),
+    () => vscode.workspace.getConfiguration('aStockWatch').get<number>('intradayRefreshInterval', 5)
   );
   const tree = new WatchlistTreeProvider(watchlist, current, service);
   const status = new StatusBarController(current, service);
@@ -61,16 +62,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         const stock: StockRef = { code: quote.code, secid: quote.secid, market: quote.market, name: quote.name };
         await watchlist.add(stock);
         if (!current.get()) await current.set(stock.code);
-        tree.refresh(); await service?.refreshNow();
+        tree.refresh();
       } catch (error) { void vscode.window.showErrorMessage(`添加失败：${message(error)}`); }
     }),
     vscode.commands.registerCommand('aStockWatch.removeCurrent', async () => {
       const code = current.get(); if (!code) return;
       await watchlist.remove(code);
       await current.set(watchlist.getAll()[0]?.code);
-      tree.refresh(); await service?.refreshNow();
+      tree.refresh();
     }),
-    vscode.commands.registerCommand('aStockWatch.selectStock', async (code: string) => { await current.set(code); tree.refresh(); await service?.refreshNow(); }),
+    vscode.commands.registerCommand('aStockWatch.selectStock', async (code: string) => { await current.set(code); tree.refresh(); }),
     vscode.commands.registerCommand('aStockWatch.previousStock', () => rotate(-1, watchlist, current, tree)),
     vscode.commands.registerCommand('aStockWatch.nextStock', () => rotate(1, watchlist, current, tree)),
     vscode.commands.registerCommand('aStockWatch.refresh', () => service?.refreshNow()),
@@ -99,8 +100,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!bridgeInfo) return;
       try { await installer.repair(bridgeInfo); } catch (error) { void vscode.window.showErrorMessage(`修复失败：${message(error)}`); }
     }),
-    watchlist.onDidChange(() => { tree.refresh(); void service?.refreshNow(); }),
-    current.onDidChange(() => { tree.refresh(); void service?.refreshNow(); })
+    watchlist.onDidChange(() => { tree.refresh(); void service?.refreshQuotesNow(); }),
+    current.onDidChange(() => { tree.refresh(); service?.switchCurrent(); })
   );
   service.start();
 }
@@ -114,7 +115,7 @@ async function rotate(direction: number, watchlist: WatchlistStore, current: Cur
   const stocks = watchlist.getAll(); if (!stocks.length) return;
   const index = Math.max(0, stocks.findIndex((stock) => stock.code === current.get()));
   await current.set(stocks[(index + direction + stocks.length) % stocks.length].code);
-  tree.refresh(); await service?.refreshNow();
+  tree.refresh();
 }
 
 function backgroundOptions(visible: boolean, sessionOpacity: SessionOpacityController): BackgroundOptions {

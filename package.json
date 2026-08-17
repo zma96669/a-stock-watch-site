@@ -2,7 +2,7 @@
   "name": "a-stock-watch",
   "displayName": "A股盯盘",
   "description": "在 VS Code 中查看 A 股自选股、实时行情和当日分时图。",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "publisher": "local-dev",
   "license": "MIT",
   "engines": {
@@ -155,10 +155,17 @@
       "properties": {
         "aStockWatch.refreshInterval": {
           "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 60,
+          "description": "批量报价刷新间隔（秒）"
+        },
+        "aStockWatch.intradayRefreshInterval": {
+          "type": "number",
           "default": 5,
           "minimum": 3,
           "maximum": 60,
-          "description": "交易时段行情刷新间隔（秒）"
+          "description": "当前股票完整分时刷新间隔（秒）"
         },
         "aStockWatch.background.opacity": {
           "type": "number",
