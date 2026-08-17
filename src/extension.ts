@@ -5,6 +5,8 @@ import { BackgroundInstaller } from './background/installer';
 import { StatusBarController } from './controllers/status-bar-controller';
 import type { BackgroundOptions, StockRef } from './domain/types';
 import { EastMoneyProvider } from './market/eastmoney-provider';
+import { TencentProvider } from './market/tencent-provider';
+import { TencentPrimaryProvider } from './market/fallback-provider';
 import { createStockRef } from './market/stock-code';
 import { QuoteService } from './services/quote-service';
 import { CurrentStockStore } from './state/current-stock-store';
@@ -28,7 +30,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const current = new CurrentStockStore(context.globalState);
   const backgroundVisibility = new BackgroundVisibilityStore(context.globalState);
   const sessionOpacity = new SessionOpacityController();
-  const provider = new EastMoneyProvider();
+  const provider = new TencentPrimaryProvider(new TencentProvider(), new EastMoneyProvider());
   service = new QuoteService(
     provider,
     () => watchlist.getAll(),
