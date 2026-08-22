@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { IntradayPoint, MarketDataProvider, MarketSnapshot, StockQuote, StockRef } from '../domain/types';
+import { addVolumeRatios } from './market-metrics';
 
 const BACKOFF_SECONDS = [5, 10, 20, 30];
 
@@ -144,13 +145,14 @@ export class QuoteService {
     try {
       const intraday = await this.provider.fetchIntraday(stock, controller.signal);
       if (!this.isActiveIntraday(controller, generation, requestedCode)) return;
-      this.intradayCache.set(requestedCode, intraday);
+      const enriched = addVolumeRatios(intraday);
+      this.intradayCache.set(requestedCode, enriched);
       this.intradayFailures = 0;
       this.intradayError = undefined;
       this.snapshot = {
         ...this.snapshot,
         currentCode: requestedCode,
-        intraday,
+        intraday: enriched,
         previousClose: this.snapshot.quotes[requestedCode]?.previousClose ?? this.snapshot.previousClose,
         updatedAt: new Date().toISOString()
       };

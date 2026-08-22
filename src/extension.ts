@@ -8,13 +8,14 @@ import { EastMoneyProvider } from './market/eastmoney-provider';
 import { TencentProvider } from './market/tencent-provider';
 import { TencentPrimaryProvider } from './market/fallback-provider';
 import { createStockRef } from './market/stock-code';
+import { searchStocks } from './market/stock-search';
 import { QuoteService } from './services/quote-service';
 import { CurrentStockStore } from './state/current-stock-store';
 import { BackgroundVisibilityStore } from './state/background-visibility-store';
 import { SessionOpacityController } from './state/session-opacity-controller';
 import { WatchlistStore } from './state/watchlist-store';
 import { ChartPanel } from './views/chart-panel';
-import { WatchlistTreeProvider } from './views/watchlist-tree';
+import { WatchlistWebviewProvider } from './views/watchlist-webview';
 
 let service: QuoteService | undefined;
 let bridge: BackgroundBridge | undefined;
@@ -38,7 +39,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     () => vscode.workspace.getConfiguration('aStockWatch').get<number>('refreshInterval', 2),
     () => vscode.workspace.getConfiguration('aStockWatch').get<number>('intradayRefreshInterval', 5)
   );
-  const tree = new WatchlistTreeProvider(watchlist, current, service);
+  const watchlistView = new WatchlistWebviewProvider(context.extensionUri, watchlist, current, service);
   const status = new StatusBarController(current, service);
   const installer = new BackgroundInstaller(context);
   bridge = new BackgroundBridge(() => ({
@@ -50,30 +51,29 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   try { await installer.reconcile(); } catch (error) { console.warn('A股盯盘背景安装状态同步失败', error); }
 
   context.subscriptions.push(
-    watchlist, current, tree, status,
-    vscode.window.registerTreeDataProvider('aStockWatch.watchlist', tree),
+    watchlist, current, watchlistView, status,
+    vscode.window.registerWebviewViewProvider('aStockWatch.watchlist', watchlistView, { webviewOptions: { retainContextWhenHidden: true } }),
     vscode.commands.registerCommand('aStockWatch.addStock', async () => {
-      const input = await vscode.window.showInputBox({ prompt: '输入六位 A 股代码', placeHolder: '例如 600519', validateInput: (value) => { try { createStockRef(value); return undefined; } catch (error) { return (error as Error).message; } } });
+      const input = await vscode.window.showInputBox({ prompt: '输入股票名称或六位代码', placeHolder: '例如 贵州茅台 或 600519' });
       if (!input) return;
       try {
-        const candidate = createStockRef(input);
-        const [quote] = await provider.fetchQuotes([candidate]);
-        if (!quote) throw new Error(`没有找到股票 ${candidate.code}`);
-        const stock: StockRef = { code: quote.code, secid: quote.secid, market: quote.market, name: quote.name };
+        const rows = await searchStocks(input);
+        if (!rows.length) throw new Error(`没有找到匹配的沪深 A 股：${input}`);
+        const choice = rows.length === 1 ? rows[0] : await vscode.window.showQuickPick(rows.map((stock) => ({ label: stock.name, description: `${stock.code} · ${stock.market}`, stock })), { placeHolder: '选择要加入的股票' });
+        const stock = choice && 'stock' in choice ? choice.stock : choice;
+        if (!stock) return;
         await watchlist.add(stock);
         if (!current.get()) await current.set(stock.code);
-        tree.refresh();
       } catch (error) { void vscode.window.showErrorMessage(`添加失败：${message(error)}`); }
     }),
     vscode.commands.registerCommand('aStockWatch.removeCurrent', async () => {
       const code = current.get(); if (!code) return;
       await watchlist.remove(code);
       await current.set(watchlist.getAll()[0]?.code);
-      tree.refresh();
     }),
-    vscode.commands.registerCommand('aStockWatch.selectStock', async (code: string) => { await current.set(code); tree.refresh(); }),
-    vscode.commands.registerCommand('aStockWatch.previousStock', () => rotate(-1, watchlist, current, tree)),
-    vscode.commands.registerCommand('aStockWatch.nextStock', () => rotate(1, watchlist, current, tree)),
+    vscode.commands.registerCommand('aStockWatch.selectStock', async (code: string) => { await current.set(code); }),
+    vscode.commands.registerCommand('aStockWatch.previousStock', () => rotate(-1, watchlist, current)),
+    vscode.commands.registerCommand('aStockWatch.nextStock', () => rotate(1, watchlist, current)),
     vscode.commands.registerCommand('aStockWatch.refresh', () => service?.refreshNow()),
     vscode.commands.registerCommand('aStockWatch.openChart', () => service && ChartPanel.show(context.extensionUri, service)),
     vscode.commands.registerCommand('aStockWatch.toggleBackgroundVisibility', async () => {
@@ -100,8 +100,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!bridgeInfo) return;
       try { await installer.repair(bridgeInfo); } catch (error) { void vscode.window.showErrorMessage(`修复失败：${message(error)}`); }
     }),
-    watchlist.onDidChange(() => { tree.refresh(); void service?.refreshQuotesNow(); }),
-    current.onDidChange(() => { tree.refresh(); service?.switchCurrent(); })
+    watchlist.onDidChange(() => { void service?.refreshQuotesNow(); })
   );
   service.start();
 }
@@ -111,11 +110,10 @@ export async function deactivate(): Promise<void> {
   await bridge?.stop();
 }
 
-async function rotate(direction: number, watchlist: WatchlistStore, current: CurrentStockStore, tree: WatchlistTreeProvider): Promise<void> {
+async function rotate(direction: number, watchlist: WatchlistStore, current: CurrentStockStore): Promise<void> {
   const stocks = watchlist.getAll(); if (!stocks.length) return;
   const index = Math.max(0, stocks.findIndex((stock) => stock.code === current.get()));
   await current.set(stocks[(index + direction + stocks.length) % stocks.length].code);
-  tree.refresh();
 }
 
 function backgroundOptions(visible: boolean, sessionOpacity: SessionOpacityController): BackgroundOptions {

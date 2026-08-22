@@ -242,23 +242,30 @@
         (point, index) => tradingSessionProgress(point.time) ?? index / Math.max(1, points.length - 1)
       );
       const x = (position) => clamp(position, 0, 1) * chartWidth;
-      const y = (price) => (range.max - price) / (range.max - range.min) * rect.height;
+      const priceTop = 18;
+      const priceBottom = Math.max(priceTop + 30, rect.height * 0.74);
+      const volumeTop = Math.min(rect.height - 42, priceBottom + Math.max(10, rect.height * 0.05));
+      const volumeBottom = Math.max(volumeTop + 18, rect.height - 20);
+      const y = (price) => priceTop + (range.max - price) / (range.max - range.min) * (priceBottom - priceTop);
       const zeroY = y(previousClose);
       const segments = splitPriceSegments(points.map((point) => point.price), positions, previousClose);
       const gridLevels = priceGridLevels(range.min, range.max, previousClose);
       const timeMarkers = tradingTimeMarkers();
-      drawGuideLines(ctx, chartWidth, rect.height, baseOpacity, gridLevels, timeMarkers);
-      if (options.showVolume) drawAmountBars(ctx, points, positions, x, chartWidth, rect.height, baseOpacity);
+      drawGuideLines(ctx, chartWidth, priceBottom, baseOpacity, gridLevels, timeMarkers);
+      if (options.showVolume) {
+        drawAmountBars(ctx, points, positions, x, chartWidth, volumeTop, volumeBottom, previousClose, baseOpacity);
+        drawVolumeDivider(ctx, chartWidth, volumeTop, baseOpacity);
+      }
       drawZeroLine(ctx, chartWidth, zeroY, baseOpacity);
       drawSegmentFill(ctx, segments, x, y, zeroY, baseOpacity);
       drawPriceSegments(ctx, segments, x, y, options.lineWidth, baseOpacity);
       if (options.showAverage) drawAverage(ctx, points, positions, x, y, options.lineWidth, baseOpacity);
       const latest = points.at(-1);
-      drawLatest(ctx, latest, positions.at(-1), previousClose, chartWidth, rect.height, x, y, baseOpacity, layout.showScale);
-      updatePriceScale(scale, gridLevels, latest, previousClose, layout, rect.height, y);
+      drawLatest(ctx, latest, positions.at(-1), previousClose, chartWidth, priceBottom, x, y, baseOpacity, layout.showScale);
+      updatePriceScale(scale, gridLevels, latest, previousClose, layout, priceBottom, y);
       updateTimeAxis(timeAxis, layout, rect.height);
       const turnoverRate = state?.currentCode ? state.quotes?.[state.currentCode]?.turnoverRate : void 0;
-      updateActivitySummary(summary, latest.amount, turnoverRate, options.showVolume, layout, rect.height);
+      updateActivitySummary(summary, latest.amount, turnoverRate, latest.volumeRatio, options.showVolume, layout, rect.height);
     }
     function createScale() {
       const scale = document.createElement("div");
@@ -312,21 +319,34 @@
       }
       ctx.restore();
     }
-    function drawAmountBars(ctx, points, positions, x, width, height, opacity) {
+    function drawAmountBars(ctx, points, positions, x, width, top, bottom, previousClose, opacity) {
       const scale = amountScale(points.map((point) => point.amount));
       if (scale <= 0) return;
-      const baseline = Math.max(1, height - 18);
-      const maxBarHeight = clamp(height * 0.14, 28, 96);
+      const baseline = Math.max(top + 1, bottom);
+      const maxBarHeight = Math.max(12, bottom - top - 2);
       const barWidth = clamp(width / 240 * 0.58, 0.75, 3);
       ctx.save();
-      ctx.globalAlpha = clamp(opacity * 0.5, 0.01, 0.18);
-      ctx.fillStyle = GRAPHITE;
+      ctx.globalAlpha = clamp(opacity * 0.62, 0.012, 0.16);
       points.forEach((point, index) => {
         const ratio = amountBarRatio(point.amount, scale);
         if (ratio <= 0) return;
         const barHeight = Math.max(0.5, ratio * maxBarHeight);
+        const previous = index ? points[index - 1].price : previousClose;
+        ctx.fillStyle = point.price > previous ? "#a16f72" : point.price < previous ? "#6f9181" : GRAPHITE;
         ctx.fillRect(x(positions[index]) - barWidth / 2, baseline - barHeight, barWidth, barHeight);
       });
+      ctx.restore();
+    }
+    function drawVolumeDivider(ctx, width, y, opacity) {
+      ctx.save();
+      ctx.globalAlpha = clamp(opacity * 0.42, 8e-3, 0.08);
+      ctx.strokeStyle = GRAPHITE;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 6]);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
       ctx.restore();
     }
     function drawZeroLine(ctx, width, zeroY, opacity) {
@@ -449,14 +469,15 @@
       if (!visible) return;
       axis.style.width = `${layout.chartWidth}px`;
     }
-    function updateActivitySummary(summary, latestAmount, turnoverRate, show, layout, height) {
+    function updateActivitySummary(summary, latestAmount, turnoverRate, volumeRatio, show, layout, height) {
       const visible = show && layout.chartWidth >= 520 && height >= 180;
       summary.style.display = visible ? "block" : "none";
       if (!visible) return;
       const width = Math.min(176, layout.chartWidth - 8);
       summary.style.left = `${Math.max(4, layout.chartWidth - width - 4)}px`;
       summary.style.width = `${width}px`;
-      const label = `\u989D ${formatTradingAmount(latestAmount)} \xB7 \u6362 ${formatTurnoverRate(turnoverRate)}`;
+      const ratio = volumeRatio == null || !Number.isFinite(volumeRatio) ? "--" : `${volumeRatio.toFixed(2)}x`;
+      const label = `\u989D ${formatTradingAmount(latestAmount)} \xB7 \u6362 ${formatTurnoverRate(turnoverRate)} \xB7 \u91CF\u6BD4 ${ratio}`;
       if (summary.textContent !== label) summary.textContent = label;
     }
     function applyOverlayOpacity(scale, timeAxis, summary, opacity) {

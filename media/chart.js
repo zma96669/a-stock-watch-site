@@ -13,7 +13,8 @@
     const quote = snapshot.currentCode ? snapshot.quotes[snapshot.currentCode] : undefined;
     nameEl.textContent = quote ? `${quote.name}  ${quote.code}` : '请选择股票';
     const pct = quote?.changePercent;
-    metaEl.textContent = quote ? `最新 ${fmt(quote.price)}　涨跌 ${pct == null ? '--' : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}　成交量 ${compact(quote.volume)}` : '';
+    const latest = snapshot.intraday?.at(-1);
+    metaEl.textContent = quote ? `最新 ${fmt(quote.price)}　涨跌 ${pct == null ? '--' : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}　成交量 ${compact(quote.volume)}　量比 ${latest?.volumeRatio == null ? '--' : latest.volumeRatio.toFixed(2) + 'x'}` : '';
     metaEl.className = `meta${snapshot.stale ? ' stale' : ''}`;
     points = snapshot.intraday || [];
     draw();
@@ -29,7 +30,7 @@
     tip.style.display = 'block';
     tip.style.left = `${Math.min(rect.width - 150, event.offsetX + 10)}px`;
     tip.style.top = `${Math.max(5, event.offsetY - 42)}px`;
-    tip.textContent = `${point.time.slice(-5)}  价格 ${point.price.toFixed(2)}  均价 ${point.averagePrice.toFixed(2)}`;
+    tip.textContent = `${point.time.slice(-5)}  价格 ${point.price.toFixed(2)}  均价 ${point.averagePrice.toFixed(2)}  成交额 ${compact(point.amount)} 量比 ${point.volumeRatio == null ? '--' : point.volumeRatio.toFixed(2) + 'x'}`;
   });
   canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 
@@ -45,7 +46,7 @@
       ctx.fillText('暂无分时数据', 20, 35);
       return;
     }
-    const left = 48, right = 16, top = 18, priceBottom = rect.height * .74, volumeTop = rect.height * .79, bottom = rect.height - 22;
+    const left = 48, right = 16, top = 18, priceBottom = Math.max(top + 36, rect.height * .74), volumeTop = Math.min(rect.height - 42, priceBottom + Math.max(10, rect.height * .05)), bottom = Math.max(volumeTop + 18, rect.height - 22);
     const prev = snapshot.previousClose || points[0].price;
     const prices = points.flatMap((p) => [p.price, p.averagePrice]);
     const delta = Math.max(...prices.map((p) => Math.abs(p - prev)), prev * .005);
@@ -54,12 +55,13 @@
     const y = (p) => top + (max - p) / (max - min) * (priceBottom - top);
     ctx.strokeStyle = css('--vscode-editorWidget-border', '#555'); ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(left, y(prev)); ctx.lineTo(rect.width - right, y(prev)); ctx.stroke();
+    ctx.save(); ctx.globalAlpha = .55; ctx.setLineDash([3, 6]); ctx.beginPath(); ctx.moveTo(left, volumeTop); ctx.lineTo(rect.width - right, volumeTop); ctx.stroke(); ctx.restore();
     line('averagePrice', css('--vscode-charts-yellow', '#d7ba7d'), 1.2, x, y);
     const latest = points[points.length - 1].price;
     line('price', latest >= prev ? css('--vscode-charts-red', '#f14c4c') : css('--vscode-charts-green', '#89d185'), 1.8, x, y);
     const maxVolume = Math.max(1, ...points.map((p) => p.volume));
-    ctx.fillStyle = css('--vscode-charts-blue', '#4e94ce'); ctx.globalAlpha = .5;
-    points.forEach((p, i) => { const h = p.volume / maxVolume * (bottom - volumeTop); ctx.fillRect(x(i), bottom - h, Math.max(1, (rect.width-left-right)/points.length), h); });
+    ctx.globalAlpha = .6;
+    points.forEach((p, i) => { const h = p.volume / maxVolume * (bottom - volumeTop - 2); const previous = i ? points[i - 1].price : prev; ctx.fillStyle = p.price > previous ? css('--vscode-charts-red', '#a16f72') : p.price < previous ? css('--vscode-charts-green', '#6f9181') : css('--vscode-descriptionForeground', '#858a90'); ctx.fillRect(x(i), bottom - h, Math.max(1, (rect.width-left-right)/points.length), h); });
     ctx.globalAlpha = 1; ctx.fillStyle = css('--vscode-descriptionForeground', '#888'); ctx.font = '11px sans-serif';
     ctx.fillText(max.toFixed(2), 4, top + 4); ctx.fillText(prev.toFixed(2), 4, y(prev) + 4); ctx.fillText(min.toFixed(2), 4, priceBottom);
     ctx.fillText(points[0].time.slice(-5), left, rect.height - 5); ctx.fillText(points[points.length - 1].time.slice(-5), rect.width - 48, rect.height - 5);
@@ -69,4 +71,3 @@
   function fmt(value) { return value == null ? '--' : value.toFixed(2); }
   function compact(value) { return value == null ? '--' : value >= 1e8 ? `${(value/1e8).toFixed(2)}亿` : value >= 1e4 ? `${(value/1e4).toFixed(2)}万` : String(value); }
 })();
-

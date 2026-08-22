@@ -7,6 +7,20 @@ export interface StockRef {
   name: string;
 }
 
+export interface WatchlistEntry extends StockRef {
+  groupId: string;
+  sortOrder: number;
+  costPrice?: number;
+  shares?: number;
+}
+
+export interface WatchlistGroup {
+  id: string;
+  name: string;
+  sortOrder: number;
+  collapsed: boolean;
+}
+
 export interface StockQuote extends StockRef {
   price: number | null;
   previousClose: number | null;
@@ -24,6 +38,7 @@ export interface IntradayPoint {
   averagePrice: number;
   volume: number;
   amount: number;
+  volumeRatio?: number;
 }
 
 export interface MarketSnapshot {
