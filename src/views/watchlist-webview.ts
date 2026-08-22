@@ -113,7 +113,8 @@ export class WatchlistWebviewProvider implements vscode.WebviewViewProvider, vsc
     if (!code) return;
     const stock = this.searchResults.get(code);
     if (!stock) throw new Error('搜索结果已过期，请重新搜索');
-    await this.watchlist.add(stock, groupId);
+    const added = await this.watchlist.add(stock, groupId);
+    if (!added) throw new Error(`${stock.name}（${stock.code}）已经在自选股中`);
     if (!this.current.get()) await this.current.set(stock.code);
   }
 

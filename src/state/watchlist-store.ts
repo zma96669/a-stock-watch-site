@@ -62,12 +62,13 @@ export class WatchlistStore {
     return this.groups.find((group) => group.id === id)?.sortOrder ?? Number.MAX_SAFE_INTEGER;
   }
 
-  async add(stock: StockRef, groupId = DEFAULT_GROUP_ID): Promise<void> {
-    if (this.get(stock.code)) return;
+  async add(stock: StockRef, groupId = DEFAULT_GROUP_ID): Promise<boolean> {
+    if (this.get(stock.code)) return false;
     const group = this.groups.some((item) => item.id === groupId) ? groupId : DEFAULT_GROUP_ID;
     const maxSort = Math.max(-1, ...this.entries.filter((entry) => entry.groupId === group).map((entry) => entry.sortOrder));
     this.entries = [...this.entries, { ...stock, groupId: group, sortOrder: maxSort + 1 }];
     await this.persist();
+    return true;
   }
 
   async remove(code: string): Promise<void> {

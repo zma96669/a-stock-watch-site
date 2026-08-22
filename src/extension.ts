@@ -62,7 +62,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         const choice = rows.length === 1 ? rows[0] : await vscode.window.showQuickPick(rows.map((stock) => ({ label: stock.name, description: `${stock.code} · ${stock.market}`, stock })), { placeHolder: '选择要加入的股票' });
         const stock = choice && 'stock' in choice ? choice.stock : choice;
         if (!stock) return;
-        await watchlist.add(stock);
+        const added = await watchlist.add(stock);
+        if (!added) {
+          void vscode.window.showInformationMessage(`${stock.name}（${stock.code}）已经在自选股中`);
+          return;
+        }
         if (!current.get()) await current.set(stock.code);
       } catch (error) { void vscode.window.showErrorMessage(`添加失败：${message(error)}`); }
     }),
