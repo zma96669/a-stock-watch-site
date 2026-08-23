@@ -83,4 +83,16 @@ describe('watchlist webview initialization', () => {
     expect(source).not.toContain('var(--vscode-charts-red)');
     expect(source).not.toContain('var(--vscode-charts-green)');
   });
+
+  it('dismisses stock menus after leaving or interacting elsewhere', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain('menu.onmouseenter=cancelMenuClose');
+    expect(source).toContain('menu.onmouseleave=()=>scheduleMenuClose(menu)');
+    expect(source).toContain('setTimeout(()=>');
+    expect(source).toContain('},250)');
+    expect(source).toContain("document.addEventListener('pointerdown'");
+    expect(source).toContain("document.addEventListener('wheel'");
+    expect(source).toContain("window.addEventListener('blur'");
+    expect(source).toContain("document.addEventListener('visibilitychange'");
+  });
 });
