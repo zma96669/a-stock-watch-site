@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import type { MarketSnapshot, StockRef, WatchlistEntry, WatchlistGroup } from '../domain/types';
 import { searchStocks } from '../market/stock-search';
@@ -124,8 +125,8 @@ export class WatchlistWebviewProvider implements vscode.WebviewViewProvider, vsc
   }
 
   private html(webview: vscode.Webview): string {
-    const nonce = Math.random().toString(36).slice(2);
-    const csp = `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';`;
+    const nonce = randomBytes(16).toString('base64');
+    const csp = `default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}';`;
     const payload = this.statePayload();
     const initialState = serializeForInlineScript(payload);
     const initialMarkup = initialWatchlistMarkup(payload.groups, payload.entries);

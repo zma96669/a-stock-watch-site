@@ -37,4 +37,12 @@ describe('watchlist webview initialization', () => {
     expect(source).toContain("window.addEventListener('unhandledrejection'");
     expect(source).toContain("showError('自选股渲染失败：'");
   });
+
+  it('uses the VS Code webview CSP source and a cryptographic nonce', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain("import { randomBytes } from 'node:crypto'");
+    expect(source).toContain("randomBytes(16).toString('base64')");
+    expect(source).toContain('style-src ${webview.cspSource}');
+    expect(source).toContain('script-src ${webview.cspSource}');
+  });
 });
