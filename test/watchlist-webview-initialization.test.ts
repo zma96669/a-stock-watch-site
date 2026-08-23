@@ -119,4 +119,16 @@ describe('watchlist webview initialization', () => {
     expect(source).toContain("case 'follow':");
     expect(source).toContain("case 'unfollow':");
   });
+
+  it('uses an Explorer-like workbench tree with aligned chevrons and indent guides', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain('#app{--tree-column:18px}');
+    expect(source).toContain('.tree-arrow::before');
+    expect(source).toContain('.tree-arrow.expanded::before');
+    expect(source).toContain('var(--vscode-tree-indentGuidesStroke');
+    expect(source).toContain("children.className='group-children'");
+    expect(source).toContain('<div class="group-children">');
+    expect(source).toContain("head.setAttribute('aria-expanded',String(!collapsed))");
+    expect(source).not.toContain("(collapsed?'▶':'▼')");
+  });
 });
