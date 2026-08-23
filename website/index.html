@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#06070b" />
+    <meta name="description" content="A股盯盘——把实时行情、分时图、自选股和持仓盈亏融入 VS Code 工作台。" />
+    <title>A股盯盘｜代码不停，行情不离场</title>
+    <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page-progress" aria-hidden="true"><span></span></div>
+    <canvas id="particle-canvas" aria-hidden="true"></canvas>
+    <div class="ambient ambient-a" aria-hidden="true"></div>
+    <div class="ambient ambient-b" aria-hidden="true"></div>
+    <div class="noise" aria-hidden="true"></div>
+
+    <header class="site-header" id="top">
+      <a class="brand" href="#top" aria-label="A股盯盘首页">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="brand-copy"><strong>A股盯盘</strong><small>A-STOCK WATCH</small></span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false"><span></span><span></span></button>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="#features">能力</a><a href="#live">行情</a><a href="#showcase">界面</a><a href="#sync">同步</a>
+      </nav>
+      <a class="header-cta magnetic" href="downloads/a-stock-watch-0.1.32.vsix" download>
+        <span>下载 VSIX</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2v10m0 0 4-4m-4 4L6 8M3 14v3h14v-3" /></svg>
+      </a>
+    </header>
+
+    <main>
+      <section class="hero section-shell">
+        <div class="hero-copy">
+          <div class="eyebrow reveal"><span class="live-dot"></span>VS CODE 原生行情工作台<b>v0.1.32</b></div>
+          <h1 class="hero-title reveal" data-delay="80"><span>代码不停，</span><span class="gradient-text">行情不离场。</span></h1>
+          <p class="hero-lead reveal" data-delay="150">把 A 股实时行情、分时走势和持仓盈亏，安静地放进你的开发工作台。无需来回切屏，也不打断正在发生的思考。</p>
+          <div class="hero-actions reveal" data-delay="220">
+            <a class="button button-primary magnetic" href="downloads/a-stock-watch-0.1.32.vsix" download>
+              <span class="button-glow"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 19h16" /></svg><span>立即安装体验</span>
+            </a>
+            <a class="button button-ghost magnetic" href="#showcase"><span>探索工作台</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></a>
+          </div>
+          <div class="hero-meta reveal" data-delay="280">
+            <div><strong><span class="counter" data-count="83">0</span></strong><small>项自动化测试</small></div><i></i>
+            <div><strong><span class="counter" data-count="2">0</span>s</strong><small>报价刷新</small></div><i></i>
+            <div><strong>本地优先</strong><small>数据由你掌控</small></div>
+          </div>
+        </div>
+
+        <div class="hero-visual reveal" data-delay="120">
+          <div class="orbit orbit-a" aria-hidden="true"><span></span></div><div class="orbit orbit-b" aria-hidden="true"><span></span></div>
+          <div class="float-label float-label-a"><span></span>腾讯财经主源</div>
+          <div class="float-label float-label-b"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M5 8V6a4 4 0 0 1 8 0v2m-9 0h10v7H4z" /></svg>私有同步</div>
+          <div class="workbench tilt-card" data-tilt="5">
+            <div class="workbench-halo"></div>
+            <div class="window-bar"><div class="window-dots"><i></i><i></i><i></i></div><div class="window-title"><span></span> strategy.ts — Visual Studio Code</div><div class="window-command">⌘ 搜索</div></div>
+            <div class="workbench-body">
+              <aside class="activity-rail" aria-hidden="true"><span class="rail-icon active">◇</span><span class="rail-icon">⌕</span><span class="rail-icon">⑂</span><span class="rail-icon">▷</span><span class="rail-icon stock-icon">⌁</span></aside>
+              <div class="stock-panel">
+                <div class="panel-head"><span>自选股</span><div>＋ &nbsp; ↻ &nbsp; ▥</div></div>
+                <div class="panel-search">输入股票名称或代码 <b>搜索</b></div>
+                <div class="stock-group"><span>⌄</span><strong>持仓</strong><em>1只 -0.35%</em></div>
+                <div class="stock-line selected"><span></span><b>宁波银行</b><em>34.06</em><small>-0.35%</small></div>
+                <div class="stock-group"><span>›</span><strong>我的关注</strong><em>4只 +1.27%</em></div>
+                <div class="stock-group"><span>›</span><strong>低估值</strong><em>6只 +0.82%</em></div>
+                <div class="stock-group"><span>›</span><strong>科技</strong><em>5只 +2.15%</em></div>
+              </div>
+              <div class="editor-pane">
+                <div class="editor-tabs"><span class="active"><i>TS</i> strategy.ts</span><span><i>{ }</i> config.json</span></div>
+                <div class="code-area">
+                  <div class="line-numbers">01<br />02<br />03<br />04<br />05<br />06<br />07<br />08<br />09<br />10<br />11</div>
+                  <pre><code><span class="purple">interface</span> <span class="blue">Signal</span> {
+  symbol: <span class="blue">string</span>;
+  score: <span class="blue">number</span>;
+}
+
+<span class="purple">export const</span> watch = (
+  market: <span class="orange">'CN-A'</span>
+) =&gt; <span class="green">stream</span>(market)
+  .filter(<span class="blue">isOpportunity</span>)
+  .map(<span class="blue">toSignal</span>);</code></pre>
+                  <svg class="ghost-chart" viewBox="0 0 640 280" preserveAspectRatio="none" aria-hidden="true">
+                    <defs><linearGradient id="heroChartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3eecff" stop-opacity=".17" /><stop offset="1" stop-color="#3eecff" stop-opacity="0" /></linearGradient></defs>
+                    <path class="ghost-fill" d="M0 185 C42 180 53 210 92 194 S145 139 176 154 S225 187 255 167 S298 122 330 142 S381 172 421 125 S470 78 514 101 S571 75 640 42 L640 280 L0 280Z" />
+                    <path class="ghost-line" d="M0 185 C42 180 53 210 92 194 S145 139 176 154 S225 187 255 167 S298 122 330 142 S381 172 421 125 S470 78 514 101 S571 75 640 42" /><path class="zero-line" d="M0 166 H640" />
+                  </svg>
+                  <div class="quote-float"><small>宁波银行</small><strong>34.06</strong><span>-0.12 &nbsp; -0.35%</span></div>
+                </div>
+                <div class="status-bar"><span>main*</span><span>Ln 10, Col 19 &nbsp; UTF-8 &nbsp; TypeScript</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scroll-cue" aria-hidden="true"><span></span><small>SCROLL TO EXPLORE</small></div>
+      </section>
+
+      <section class="market-tape" aria-label="行情演示"><div class="market-tape-track">
+        <span><b>上证指数</b><em class="up">+0.78%</em></span><span><b>深证成指</b><em class="up">+1.21%</em></span><span><b>创业板指</b><em class="down">-0.19%</em></span><span><b>沪深300</b><em class="up">+0.63%</em></span><span><b>科创50</b><em class="up">+1.86%</em></span><span><b>上证指数</b><em class="up">+0.78%</em></span><span><b>深证成指</b><em class="up">+1.21%</em></span><span><b>创业板指</b><em class="down">-0.19%</em></span><span><b>沪深300</b><em class="up">+0.63%</em></span><span><b>科创50</b><em class="up">+1.86%</em></span>
+      </div></section>
+
+      <section class="intro section-shell" id="features">
+        <div class="section-heading reveal"><div class="section-kicker"><span>01</span> WHY A-STOCK WATCH</div><h2>专注写代码，<br /><em>顺便看见市场。</em></h2><p>不再把注意力交给另一个窗口。重要信息就在熟悉的位置，用最少的视觉噪音，提供足够的市场感知。</p></div>
+        <div class="principle-grid">
+          <article class="principle-card spotlight-card reveal" data-delay="40"><div class="card-index">01</div><div class="card-icon cyan"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 8h22v16H5zM11 8V5m10 3V5M9 15h14m-11 5h8" /></svg></div><h3>不用切屏</h3><p>行情进入 VS Code 侧边栏与编辑器背景，编码上下文始终完整。</p><span class="card-line"></span></article>
+          <article class="principle-card spotlight-card reveal" data-delay="100"><div class="card-index">02</div><div class="card-icon violet"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v24M4 16h24M8 8l16 16M24 8 8 24" /><circle cx="16" cy="16" r="5" /></svg></div><h3>低调但清晰</h3><p>一键隐藏、独立透明度控制。你决定行情何时出现、出现多少。</p><span class="card-line"></span></article>
+          <article class="principle-card spotlight-card reveal" data-delay="160"><div class="card-index">03</div><div class="card-icon blue"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 12a8 8 0 0 1 15-3 7 7 0 0 1 1 14H9a6 6 0 0 1-1-11Z" /><path d="m12 18 4 4 7-8" /></svg></div><h3>换电脑不重来</h3><p>本地 JSON 无损迁移，GitHub 私有仓库手动同步，配置始终属于你。</p><span class="card-line"></span></article>
+        </div>
+      </section>
+
+      <section class="bento-section section-shell">
+        <div class="section-heading compact reveal"><div class="section-kicker"><span>02</span> BUILT FOR FLOW</div><h2>一个工作台，<em>掌控全局。</em></h2></div>
+        <div class="bento-grid">
+          <article class="bento-card bento-chart spotlight-card reveal"><div class="bento-copy"><span class="tag">沉浸背景</span><h3>让走势成为代码的呼吸</h3><p>零轴、价格区间、均价线、分时成交额，全部以克制透明度融入编辑器。</p></div><div class="code-chart-demo" aria-hidden="true"><div class="demo-code"><span>26</span><i>const</i> pulse = market.stream();<br /><span>27</span><i>const</i> signal = pulse.filter(active);<br /><span>28</span><i>return</i> signal.latest();</div><svg viewBox="0 0 680 210" preserveAspectRatio="none"><defs><linearGradient id="bentoFill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#52e8ff" stop-opacity=".25"/><stop offset="1" stop-color="#52e8ff" stop-opacity="0"/></linearGradient></defs><path class="area" d="M0 150 C42 131 74 163 112 147 S184 107 222 121 288 177 326 139 378 88 420 104 468 143 512 98 574 37 680 62 L680 210H0Z"/><path class="trace trace-animated" d="M0 150 C42 131 74 163 112 147 S184 107 222 121 288 177 326 139 378 88 420 104 468 143 512 98 574 37 680 62"/><path class="guide" d="M0 126H680"/></svg><div class="price-axis"><span>34.25</span><span>34.06</span><span>33.81</span></div><div class="chart-crosshair"><i></i><b></b></div></div></article>
+          <article class="bento-card bento-tree spotlight-card reveal" data-delay="80"><div class="bento-copy"><span class="tag">原生工作台</span><h3>像管理项目一样管理股票</h3><p>分组、折叠、关注、拖拽排序。无需学习，全是熟悉的 Explorer 语言。</p></div><div class="mini-tree" aria-hidden="true"><div class="tree-row group"><span>⌄</span><b>持仓</b><em>1只</em></div><div class="tree-row item active"><span></span><b>宁波银行</b><em>-0.35%</em></div><div class="tree-row group"><span>›</span><b>我的关注</b><em>4只</em></div><div class="tree-row group"><span>›</span><b>低估值</b><em>6只</em></div><div class="tree-row group"><span>›</span><b>科技成长</b><em>5只</em></div></div></article>
+          <article class="bento-card bento-holding spotlight-card reveal" data-delay="40"><div class="bento-copy"><span class="tag">持仓透视</span><h3>盈亏，不用心算</h3><p>配置成本价和股数，当前金额与收益比例随行情同步更新。</p></div><div class="holding-orbit" aria-hidden="true"><div class="holding-ring ring-one"></div><div class="holding-ring ring-two"></div><div class="holding-value"><small>今日盈亏</small><strong>+ ¥1,286.00</strong><span>+2.41%</span></div></div></article>
+          <article class="bento-card bento-speed spotlight-card reveal" data-delay="100"><div class="bento-copy"><span class="tag">双源行情</span><h3>快，而且有兜底</h3><p>腾讯财经优先，东方财富逐项兜底；失败自动退避。</p></div><div class="speed-meter" aria-hidden="true"><svg viewBox="0 0 240 130"><path class="meter-base" d="M25 115a95 95 0 0 1 190 0"/><path class="meter-active" d="M25 115a95 95 0 0 1 190 0"/></svg><div><strong>2.0</strong><span>SEC</span><small>QUOTE REFRESH</small></div></div></article>
+        </div>
+      </section>
+
+      <section class="live-section" id="live"><div class="section-shell live-shell">
+        <div class="section-heading live-heading reveal"><div class="section-kicker"><span>03</span> MARKET PULSE</div><h2>市场每一次脉动，<br /><em>都在眼前。</em></h2><p>这是一段页面内的行情动效演示。插件在交易时段获取公开行情数据，并对异常自动降级。</p><div class="source-flow"><div><i class="source-logo tencent">T</i><span><b>腾讯财经</b><small>PRIMARY</small></span></div><em><i></i><i></i><i></i></em><div><i class="source-logo east">E</i><span><b>东方财富</b><small>FALLBACK</small></span></div></div></div>
+        <div class="live-terminal reveal" data-delay="100">
+          <div class="terminal-top"><div><i></i><i></i><i></i></div><span>MARKET_STREAM / 000001.SZ</span><b><i></i> SIMULATION</b></div>
+          <div class="terminal-quote"><div><small>平安银行 · SZ</small><strong id="live-price">11.42</strong><span id="live-change" class="quote-up">+0.18&nbsp;&nbsp;+1.60%</span></div><div class="quote-stats"><span><small>量比</small><b id="volume-ratio">1.28</b></span><span><small>换手</small><b>0.73%</b></span><span><small>成交额</small><b>8.62亿</b></span></div></div>
+          <div class="terminal-chart"><svg id="live-chart-svg" viewBox="0 0 800 310" preserveAspectRatio="none" aria-label="动态分时走势图"><defs><linearGradient id="liveFill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#3ee7ff" stop-opacity=".24"/><stop offset="1" stop-color="#3ee7ff" stop-opacity="0"/></linearGradient><filter id="lineGlow"><feGaussianBlur stdDeviation="3.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g class="chart-grid"><path d="M0 62H800M0 124H800M0 186H800M0 248H800"/><path d="M160 0V310M320 0V310M480 0V310M640 0V310"/></g><path id="live-area" class="live-area" d="" /><path id="live-line" class="live-line" d="" /><path id="average-line" class="average-line" d="" /><g id="volume-bars" class="volume-bars"></g><line id="cursor-x" class="chart-cursor" x1="0" y1="0" x2="0" y2="310" /><circle id="cursor-dot" class="cursor-dot" cx="0" cy="0" r="4" /></svg><div class="chart-y-axis"><span>+2.50%</span><span>+1.25%</span><span>0.00%</span><span>-1.25%</span><span>-2.50%</span></div><div class="chart-x-axis"><span>09:30</span><span>10:30</span><span>11:30/13:00</span><span>14:00</span><span>15:00</span></div><div class="chart-tooltip"><small>14:32</small><b>11.42</b><span>¥ 386.4万</span></div></div>
+          <div class="terminal-log"><span>●</span> quote.updated <i>2s ago</i><b>latency 86ms</b></div>
+        </div>
+      </div></section>
+
+      <section class="showcase section-shell" id="showcase">
+        <div class="section-heading showcase-heading reveal"><div class="section-kicker"><span>04</span> REAL WORKBENCH</div><h2>不是概念图。<br /><em>它真的住进了 VS Code。</em></h2></div>
+        <div class="showcase-stage reveal"><div class="stage-glow" aria-hidden="true"></div><div class="stage-window tilt-card" data-tilt="2.5"><div class="stage-titlebar"><div><i></i><i></i><i></i></div><span>Visual Studio Code</span><small>— □ ×</small></div><div class="stage-body"><div class="stage-activity"><span>▱</span><span>⌕</span><span>⑂</span><span>▷</span><span>◇</span></div><figure class="product-shot product-shot-watch"><img src="assets/watchlist-panel.png" alt="A股盯盘自选股分组界面真实截图" loading="lazy" /></figure><div class="stage-editor"><div class="stage-tabs"><span>app.ts</span><span>market-service.ts</span></div><div class="stage-code" aria-hidden="true"><pre><span class="purple">export class</span> <span class="blue">MarketService</span> {
+  <span class="purple">private readonly</span> source = <span class="orange">'tencent'</span>;
+
+  <span class="purple">async</span> <span class="blue">subscribe</span>(symbol: <span class="blue">string</span>) {
+    <span class="purple">const</span> quote = <span class="purple">await</span> this.feed.quote(symbol);
+    <span class="purple">return</span> this.normalize(quote);
+  }
+}</pre><svg viewBox="0 0 760 330" preserveAspectRatio="none"><path d="M0 210c65-16 97 28 155 6s72-73 128-48 74 67 121 34 79-85 136-53 72 52 111 11 58-84 109-66"/><path class="faint" d="M0 238c78-4 111 22 167 8s108-39 153-26 80 38 128 16 84-43 127-26 91 11 185-19"/></svg></div></div></div></div><div class="stage-note note-a"><span>01</span><p><b>树状分组</b>像 Explorer 一样自然</p></div><div class="stage-note note-b"><span>02</span><p><b>背景分时</b>亮度随时调节</p></div><div class="stage-note note-c"><span>03</span><p><b>持仓置顶</b>盈亏一眼可见</p></div></div>
+        <div class="native-row reveal"><figure class="native-image"><img src="assets/explorer-reference.png" alt="VS Code Explorer 树状工作台参考截图" loading="lazy" /></figure><div class="native-copy"><span>DESIGNED TO BELONG</span><h3>不是塞进 VS Code，<br />而是长在 VS Code 里。</h3><p>从缩进引导线、折叠箭头到紧凑行距，股票池遵循 Explorer 的操作直觉。光标滑过去，你甚至不会觉得自己离开了项目目录。</p><ul><li><i></i>分组折叠与展开</li><li><i></i>自选股拖拽排序</li><li><i></i>持仓分组固定置顶</li><li><i></i>名称或代码搜索</li></ul></div></div>
+      </section>
+
+      <section class="sync-section" id="sync"><div class="section-shell sync-shell">
+        <div class="sync-visual reveal"><div class="sync-core"><div class="github-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.64.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 7.7a9.6 9.6 0 0 1 2.5.34c1.91-1.3 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.86V21c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" /></svg></div><span>PRIVATE REPO</span></div><div class="device device-a"><span>VS</span><small>WORKSTATION</small></div><div class="device device-b"><span>VS</span><small>LAPTOP</small></div><div class="sync-path path-a"><i></i></div><div class="sync-path path-b"><i></i></div><div class="data-packet packet-a">JSON</div><div class="data-packet packet-b">SHA</div></div>
+        <div class="section-heading sync-copy reveal" data-delay="100"><div class="section-kicker"><span>05</span> PRIVATE SYNC</div><h2>你的数据，<br /><em>只去你允许的地方。</em></h2><p>通过 VS Code 的 GitHub 登录创建私有同步仓库。Token 不落盘，上传前检测云端变更，避免另一台电脑的配置被静默覆盖。</p><div class="sync-points"><div><span>01</span><p><b>本地优先</b><small>离线也能完整使用</small></p></div><div><span>02</span><p><b>冲突保护</b><small>更新不会静默覆盖</small></p></div><div><span>03</span><p><b>可恢复</b><small>每次导入前自动备份</small></p></div></div></div>
+      </div></section>
+
+      <section class="shortcuts section-shell"><div class="shortcuts-copy reveal"><div class="section-kicker"><span>06</span> DISCREET BY DESIGN</div><h2>该专注时，<em>一秒隐身。</em></h2><p>快捷键只控制行情背景，不影响代码、不关闭面板。下一次唤醒，透明度自动回到舒适默认值。</p></div><div class="keyboard-demo reveal" data-delay="100"><div class="key"><small>CTRL</small><span></span></div><b>+</b><div class="key"><small>SHIFT</small><span></span></div><b>+</b><div class="key key-n"><small>N</small><span></span></div><div class="key-result"><i></i><span>行情背景</span><b>HIDDEN</b></div></div></section>
+
+      <section class="final-cta section-shell"><div class="cta-beam" aria-hidden="true"></div><div class="cta-grid" aria-hidden="true"></div><div class="cta-content reveal"><div class="eyebrow"><span class="live-dot"></span> READY WHEN YOU ARE</div><h2>把市场，放进你的<br /><span class="gradient-text">开发工作流。</span></h2><p>安装只需一分钟。你的代码和行情，从此不必二选一。</p><div class="hero-actions"><a class="button button-primary magnetic" href="downloads/a-stock-watch-0.1.32.vsix" download><span class="button-glow"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 19h16" /></svg><span>下载 v0.1.32</span></a><a class="button button-ghost magnetic" href="README.md"><span>阅读使用说明</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></a></div></div></section>
+    </main>
+
+    <footer class="site-footer section-shell"><div class="footer-brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><div><strong>A股盯盘</strong><small>BUILT FOR DEVELOPERS WHO WATCH THE MARKET.</small></div></div><p>行情数据仅用于个人辅助查看，不保证交易所级实时性，不构成投资建议。</p><div class="footer-meta"><span>MIT LICENSE</span><span>VERSION 0.1.32</span><a href="#top">返回顶部 ↑</a></div></footer>
+    <script src="script.js"></script>
+  </body>
+</html>
