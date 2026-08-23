@@ -126,11 +126,13 @@ export class WatchlistWebviewProvider implements vscode.WebviewViewProvider, vsc
   private html(webview: vscode.Webview): string {
     const nonce = Math.random().toString(36).slice(2);
     const csp = `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';`;
-    const initialState = serializeForInlineScript(this.statePayload());
+    const payload = this.statePayload();
+    const initialState = serializeForInlineScript(payload);
+    const initialMarkup = initialWatchlistMarkup(payload.groups, payload.entries);
     return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="${csp}">
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:8px;color:var(--vscode-foreground);font:12px var(--vscode-font-family);background:var(--vscode-sideBar-background)}button,input,select{font:inherit;color:inherit;background:var(--vscode-input-background);border:1px solid var(--vscode-input-border);border-radius:3px;padding:4px 6px}button{cursor:pointer}button:hover{background:var(--vscode-list-hoverBackground)}.toolbar{display:flex;gap:4px;margin-bottom:7px}.toolbar input{min-width:0;flex:1}.group{margin:7px 0;border:1px solid var(--vscode-tree-indentGuidesStroke);border-radius:4px;overflow:hidden}.group-head{display:flex;align-items:center;gap:5px;padding:6px;background:var(--vscode-list-inactiveSelectionBackground);cursor:pointer}.group-name{font-weight:600;flex:1}.group-meta{opacity:.7;font-size:11px}.group-actions{display:flex;gap:2px}.group-actions button{padding:1px 4px;border:0;background:transparent}.stock{padding:6px 7px;border-top:1px solid color-mix(in srgb,var(--vscode-sideBar-border) 60%,transparent);cursor:pointer}.stock:hover{background:var(--vscode-list-hoverBackground)}.stock.current{background:var(--vscode-list-activeSelectionBackground)}.stock-main,.stock-sub{display:flex;align-items:center;gap:6px}.stock-main .name{font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.code{opacity:.58;font-size:11px}.price{text-align:right;min-width:56px}.pct{text-align:right;min-width:50px}.up{color:var(--vscode-charts-red)}.down{color:var(--vscode-charts-green)}.stock-sub{margin-top:4px;opacity:.72;font-size:11px;gap:9px}.holding{padding:9px 7px}.holding .stock-sub{opacity:.9}.result{display:flex;align-items:center;gap:5px;padding:5px;border-top:1px solid var(--vscode-tree-indentGuidesStroke)}.result span:first-child{flex:1}.results{margin-bottom:7px}.empty,.error{padding:8px;opacity:.7}.error{color:var(--vscode-editorWarning-foreground)}.hidden{display:none}
-</style></head><body><div class="toolbar"><input id="search" placeholder="输入股票名称或代码"><button id="searchBtn">搜索</button><button id="groupBtn">分组</button></div><div id="results" class="results"></div><div id="app"></div><div id="error" class="error hidden"></div>
+</style></head><body><div class="toolbar"><input id="search" placeholder="输入股票名称或代码"><button id="searchBtn">搜索</button><button id="groupBtn">分组</button></div><div id="results" class="results"></div><div id="app">${initialMarkup}</div><div id="error" class="error hidden"></div>
 <script nonce="${nonce}">
 (() => { const vscode=acquireVsCodeApi(); let state=${initialState}; const $=s=>document.querySelector(s); const search=$('#search');
 function errorText(value){return value instanceof Error?value.message:String(value??'未知错误')}function showError(message){const el=$('#error');if(!el)return;el.textContent=message;el.classList.remove('hidden')}function renderSafely(){try{render()}catch(error){showError('自选股渲染失败：'+errorText(error))}}
@@ -147,6 +149,19 @@ renderSafely();vscode.postMessage({type:'ready'});
 })();
 </script></body></html>`;
   }
+}
+
+function initialWatchlistMarkup(groups: readonly WatchlistGroup[], entries: readonly WatchlistEntry[]): string {
+  if (!entries.length) return '<div class="empty">暂无自选股，搜索名称或代码后添加</div>';
+  return groups.slice().sort((a, b) => a.sortOrder - b.sortOrder).map((group) => {
+    const groupEntries = entries.filter((entry) => entry.groupId === group.id);
+    const stocks = group.collapsed ? '' : groupEntries.map((entry) => `<div class="stock"><div class="stock-main"><span class="name">${escapeHtml(entry.name)}</span><span class="code">${escapeHtml(entry.code)}</span><span class="price">--</span><span class="pct">--</span></div></div>`).join('');
+    return `<section class="group"><div class="group-head"><span>${group.collapsed ? '▶' : '▼'}</span><span class="group-name">${escapeHtml(group.name)}</span><span class="group-meta">${groupEntries.length}只 --</span></div>${stocks}</section>`;
+  }).join('');
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character] ?? character));
 }
 
 function numberOrUndefined(value: unknown): number | undefined {

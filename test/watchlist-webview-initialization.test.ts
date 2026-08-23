@@ -15,10 +15,20 @@ describe('watchlist webview initialization', () => {
   it('embeds the current state and renders before the ready-state round trip', () => {
     const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
     expect(source).toContain('payload: this.statePayload()');
-    expect(source).toContain('serializeForInlineScript(this.statePayload())');
+    expect(source).toContain('const initialState = serializeForInlineScript(payload)');
     expect(source).toContain('let state=${initialState}');
+    expect(source).toContain('const initialMarkup = initialWatchlistMarkup(payload.groups, payload.entries)');
+    expect(source).toContain('<div id="app">${initialMarkup}</div>');
     expect(source).not.toContain('let state={groups:[],entries:[]');
     expect(source.indexOf('renderSafely();vscode.postMessage')).toBeGreaterThan(-1);
+  });
+
+  it('builds escaped static markup so the list is visible before scripts run', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain('function initialWatchlistMarkup(');
+    expect(source).toContain('function escapeHtml(');
+    expect(source).toContain('escapeHtml(entry.name)');
+    expect(source).toContain('escapeHtml(group.name)');
   });
 
   it('shows page-level rendering errors inside the webview', () => {
