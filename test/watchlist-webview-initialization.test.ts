@@ -52,5 +52,24 @@ describe('watchlist webview initialization', () => {
     expect(source).toContain('<div class="stock-menu-panel">');
     expect(source).toContain("el.title=tips.join('\\\\n')");
     expect(source).not.toContain('<div class="stock-sub">');
+    expect(source).not.toContain('<span class="code">');
+  });
+
+  it('updates live prices without rebuilding the list structure', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain('const changed=structureSignature(next)!==structureKey');
+    expect(source).toContain('if(changed)renderSafely();else updateDynamicSafely()');
+    expect(source).toContain('function updateDynamic()');
+    expect(source).toContain("el.dataset.code=entry.code");
+  });
+
+  it('uses an in-webview dialog for group and holding operations', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain('function openDialog(options)');
+    expect(source).toContain("title:'新建分组'");
+    expect(source).toContain("title:'重命名分组'");
+    expect(source).toContain("title:'设置 '+entry.name+' 持仓'");
+    expect(source).not.toContain("prompt('");
+    expect(source).not.toContain("confirm('");
   });
 });
