@@ -45,4 +45,12 @@ describe('watchlist webview initialization', () => {
     expect(source).toContain('style-src ${webview.cspSource}');
     expect(source).toContain('script-src ${webview.cspSource}');
   });
+
+  it('renders stocks as one compact row with secondary actions in a menu', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain('<details class="stock-menu">');
+    expect(source).toContain('<div class="stock-menu-panel">');
+    expect(source).toContain("el.title=tips.join('\\\\n')");
+    expect(source).not.toContain('<div class="stock-sub">');
+  });
 });
