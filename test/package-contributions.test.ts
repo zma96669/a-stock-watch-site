@@ -42,11 +42,11 @@ describe('extension contributions', () => {
     });
     expect(manifest.contributes.keybindings).toContainEqual({
       command: 'aStockWatch.increaseBackgroundOpacity',
-      key: 'ctrl+alt+shift+.'
+      key: 'ctrl+alt+shift+]'
     });
     expect(manifest.contributes.keybindings).toContainEqual({
       command: 'aStockWatch.decreaseBackgroundOpacity',
-      key: 'ctrl+alt+shift+,'
+      key: 'ctrl+alt+shift+['
     });
     expect(manifest.contributes.configuration.properties['aStockWatch.background.showVolume'].default).toBe(true);
   });
