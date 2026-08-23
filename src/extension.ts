@@ -10,6 +10,7 @@ import { TencentPrimaryProvider } from './market/fallback-provider';
 import { createStockRef } from './market/stock-code';
 import { searchStocks } from './market/stock-search';
 import { QuoteService } from './services/quote-service';
+import { WatchlistTransferService } from './services/watchlist-transfer-service';
 import { CurrentStockStore } from './state/current-stock-store';
 import { BackgroundVisibilityStore } from './state/background-visibility-store';
 import { SessionOpacityController } from './state/session-opacity-controller';
@@ -40,6 +41,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     () => vscode.workspace.getConfiguration('aStockWatch').get<number>('intradayRefreshInterval', 5)
   );
   const watchlistView = new WatchlistWebviewProvider(context.extensionUri, watchlist, current, service);
+  const transfer = new WatchlistTransferService(context, watchlist, current);
   const status = new StatusBarController(current, service);
   const installer = new BackgroundInstaller(context);
   bridge = new BackgroundBridge(() => ({
@@ -80,6 +82,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('aStockWatch.nextStock', () => rotate(1, watchlist, current)),
     vscode.commands.registerCommand('aStockWatch.refresh', () => service?.refreshNow()),
     vscode.commands.registerCommand('aStockWatch.openChart', () => service && ChartPanel.show(context.extensionUri, service)),
+    vscode.commands.registerCommand('aStockWatch.manageData', async () => { try { await transfer.manage(); } catch (error) { void vscode.window.showErrorMessage(`数据管理失败：${message(error)}`); } }),
+    vscode.commands.registerCommand('aStockWatch.exportData', async () => { try { await transfer.exportData(); } catch (error) { void vscode.window.showErrorMessage(`导出失败：${message(error)}`); } }),
+    vscode.commands.registerCommand('aStockWatch.importData', async () => { try { await transfer.importData(); } catch (error) { void vscode.window.showErrorMessage(`导入失败：${message(error)}`); } }),
     vscode.commands.registerCommand('aStockWatch.toggleBackgroundVisibility', async () => {
       sessionOpacity.reset();
       await backgroundVisibility.toggle();

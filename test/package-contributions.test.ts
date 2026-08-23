@@ -21,9 +21,15 @@ describe('extension contributions', () => {
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.toggleBackgroundVisibility');
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.increaseBackgroundOpacity');
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.decreaseBackgroundOpacity');
+    expect(manifest.activationEvents).toContain('onCommand:aStockWatch.manageData');
+    expect(manifest.activationEvents).toContain('onCommand:aStockWatch.exportData');
+    expect(manifest.activationEvents).toContain('onCommand:aStockWatch.importData');
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({
       command: 'aStockWatch.toggleBackgroundVisibility'
     }));
+    expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.manageData' }));
+    expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.exportData' }));
+    expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.importData' }));
     expect(manifest.contributes.keybindings).toContainEqual({
       command: 'aStockWatch.toggleBackgroundVisibility',
       key: 'ctrl+shift+n'

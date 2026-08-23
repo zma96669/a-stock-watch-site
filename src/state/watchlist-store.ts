@@ -4,7 +4,7 @@ import type { StockRef, WatchlistEntry, WatchlistGroup } from '../domain/types';
 const KEY = 'aStockWatch.watchlist';
 const DEFAULT_GROUP_ID = 'default';
 
-interface PersistedWatchlist {
+export interface WatchlistData {
   groups: WatchlistGroup[];
   entries: WatchlistEntry[];
 }
@@ -23,7 +23,7 @@ export class WatchlistStore {
       this.groups = [{ id: DEFAULT_GROUP_ID, name: '默认分组', sortOrder: 0, collapsed: false }];
       this.entries = saved.filter(isStockRef).map((stock, index) => ({ ...stock, groupId: DEFAULT_GROUP_ID, sortOrder: index }));
     } else {
-      const value = saved as Partial<PersistedWatchlist> | undefined;
+      const value = saved as Partial<WatchlistData> | undefined;
       this.groups = Array.isArray(value?.groups) && value.groups.length
         ? value.groups.filter(isGroup)
         : [{ id: DEFAULT_GROUP_ID, name: '默认分组', sortOrder: 0, collapsed: false }];
@@ -58,6 +58,19 @@ export class WatchlistStore {
 
   getGroups(): readonly WatchlistGroup[] {
     return [...this.groups].sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id));
+  }
+
+  snapshot(): WatchlistData {
+    return {
+      groups: this.getGroups().map((group) => ({ ...group })),
+      entries: this.getEntries().map((entry) => ({ ...entry }))
+    };
+  }
+
+  async replace(data: WatchlistData): Promise<void> {
+    this.groups = data.groups.map((group) => ({ ...group }));
+    this.entries = data.entries.map((entry) => ({ ...entry }));
+    await this.persist();
   }
 
   private groupRank(id: string): number {
@@ -153,7 +166,7 @@ export class WatchlistStore {
   }
 
   private async persist(): Promise<void> {
-    const value: PersistedWatchlist = { groups: this.groups, entries: this.entries };
+    const value: WatchlistData = { groups: this.groups, entries: this.entries };
     await this.state.update(KEY, value);
     this.emitter.fire();
   }

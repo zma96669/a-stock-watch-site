@@ -2,7 +2,7 @@
   "name": "a-stock-watch",
   "displayName": "A股盯盘",
   "description": "在 VS Code 中查看 A 股自选股、实时行情和当日分时图。",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "publisher": "local-dev",
   "license": "MIT",
   "engines": {
@@ -25,6 +25,9 @@
     "onCommand:aStockWatch.toggleBackgroundVisibility",
     "onCommand:aStockWatch.increaseBackgroundOpacity",
     "onCommand:aStockWatch.decreaseBackgroundOpacity",
+    "onCommand:aStockWatch.manageData",
+    "onCommand:aStockWatch.exportData",
+    "onCommand:aStockWatch.importData",
     "onStartupFinished"
   ],
   "scripts": {
@@ -80,6 +83,19 @@
         "command": "aStockWatch.openChart",
         "title": "A股盯盘：打开分时图",
         "icon": "$(graph)"
+      },
+      {
+        "command": "aStockWatch.manageData",
+        "title": "A股盯盘：数据管理",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "aStockWatch.exportData",
+        "title": "A股盯盘：导出数据"
+      },
+      {
+        "command": "aStockWatch.importData",
+        "title": "A股盯盘：导入数据"
       },
       {
         "command": "aStockWatch.selectStock",
@@ -148,6 +164,11 @@
           "command": "aStockWatch.openChart",
           "when": "view == aStockWatch.watchlist",
           "group": "navigation@3"
+        },
+        {
+          "command": "aStockWatch.manageData",
+          "when": "view == aStockWatch.watchlist",
+          "group": "navigation@4"
         }
       ]
     },
