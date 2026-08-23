@@ -24,12 +24,18 @@ describe('extension contributions', () => {
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.manageData');
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.exportData');
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.importData');
+    expect(manifest.activationEvents).toContain('onCommand:aStockWatch.githubSync');
+    expect(manifest.activationEvents).toContain('onCommand:aStockWatch.githubUpload');
+    expect(manifest.activationEvents).toContain('onCommand:aStockWatch.githubDownload');
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({
       command: 'aStockWatch.toggleBackgroundVisibility'
     }));
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.manageData' }));
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.exportData' }));
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.importData' }));
+    expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.githubSync' }));
+    expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.githubUpload' }));
+    expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.githubDownload' }));
     expect(manifest.contributes.keybindings).toContainEqual({
       command: 'aStockWatch.toggleBackgroundVisibility',
       key: 'ctrl+shift+n'

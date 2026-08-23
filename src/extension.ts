@@ -11,6 +11,7 @@ import { createStockRef } from './market/stock-code';
 import { searchStocks } from './market/stock-search';
 import { QuoteService } from './services/quote-service';
 import { WatchlistTransferService } from './services/watchlist-transfer-service';
+import { GitHubSyncService } from './services/github-sync-service';
 import { CurrentStockStore } from './state/current-stock-store';
 import { BackgroundVisibilityStore } from './state/background-visibility-store';
 import { SessionOpacityController } from './state/session-opacity-controller';
@@ -42,6 +43,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
   const watchlistView = new WatchlistWebviewProvider(context.extensionUri, watchlist, current, service);
   const transfer = new WatchlistTransferService(context, watchlist, current);
+  const githubSync = new GitHubSyncService(context, transfer);
   const status = new StatusBarController(current, service);
   const installer = new BackgroundInstaller(context);
   bridge = new BackgroundBridge(() => ({
@@ -85,6 +87,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('aStockWatch.manageData', async () => { try { await transfer.manage(); } catch (error) { void vscode.window.showErrorMessage(`数据管理失败：${message(error)}`); } }),
     vscode.commands.registerCommand('aStockWatch.exportData', async () => { try { await transfer.exportData(); } catch (error) { void vscode.window.showErrorMessage(`导出失败：${message(error)}`); } }),
     vscode.commands.registerCommand('aStockWatch.importData', async () => { try { await transfer.importData(); } catch (error) { void vscode.window.showErrorMessage(`导入失败：${message(error)}`); } }),
+    vscode.commands.registerCommand('aStockWatch.githubSync', async () => { try { await githubSync.manage(); } catch (error) { void vscode.window.showErrorMessage(`GitHub 同步失败：${message(error)}`); } }),
+    vscode.commands.registerCommand('aStockWatch.githubUpload', async () => { try { await githubSync.upload(); } catch (error) { void vscode.window.showErrorMessage(`上传失败：${message(error)}`); } }),
+    vscode.commands.registerCommand('aStockWatch.githubDownload', async () => { try { await githubSync.download(); } catch (error) { void vscode.window.showErrorMessage(`同步失败：${message(error)}`); } }),
+    vscode.commands.registerCommand('aStockWatch.githubStatus', async () => { try { await githubSync.showStatus(); } catch (error) { void vscode.window.showErrorMessage(`同步状态读取失败：${message(error)}`); } }),
+    vscode.commands.registerCommand('aStockWatch.githubUnlink', async () => { try { await githubSync.unlink(); } catch (error) { void vscode.window.showErrorMessage(`解除绑定失败：${message(error)}`); } }),
     vscode.commands.registerCommand('aStockWatch.toggleBackgroundVisibility', async () => {
       sessionOpacity.reset();
       await backgroundVisibility.toggle();

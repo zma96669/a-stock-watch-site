@@ -2,7 +2,7 @@
   "name": "a-stock-watch",
   "displayName": "A股盯盘",
   "description": "在 VS Code 中查看 A 股自选股、实时行情和当日分时图。",
-  "version": "0.1.29",
+  "version": "0.1.30",
   "publisher": "local-dev",
   "license": "MIT",
   "engines": {
@@ -28,6 +28,11 @@
     "onCommand:aStockWatch.manageData",
     "onCommand:aStockWatch.exportData",
     "onCommand:aStockWatch.importData",
+    "onCommand:aStockWatch.githubSync",
+    "onCommand:aStockWatch.githubUpload",
+    "onCommand:aStockWatch.githubDownload",
+    "onCommand:aStockWatch.githubStatus",
+    "onCommand:aStockWatch.githubUnlink",
     "onStartupFinished"
   ],
   "scripts": {
@@ -96,6 +101,27 @@
       {
         "command": "aStockWatch.importData",
         "title": "A股盯盘：导入数据"
+      },
+      {
+        "command": "aStockWatch.githubSync",
+        "title": "A股盯盘：GitHub 云同步",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "aStockWatch.githubUpload",
+        "title": "A股盯盘：上传到 GitHub"
+      },
+      {
+        "command": "aStockWatch.githubDownload",
+        "title": "A股盯盘：从 GitHub 同步"
+      },
+      {
+        "command": "aStockWatch.githubStatus",
+        "title": "A股盯盘：查看 GitHub 同步状态"
+      },
+      {
+        "command": "aStockWatch.githubUnlink",
+        "title": "A股盯盘：解除 GitHub 绑定"
       },
       {
         "command": "aStockWatch.selectStock",
@@ -169,6 +195,11 @@
           "command": "aStockWatch.manageData",
           "when": "view == aStockWatch.watchlist",
           "group": "navigation@4"
+        },
+        {
+          "command": "aStockWatch.githubSync",
+          "when": "view == aStockWatch.watchlist",
+          "group": "navigation@5"
         }
       ]
     },

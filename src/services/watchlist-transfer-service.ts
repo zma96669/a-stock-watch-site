@@ -6,7 +6,8 @@ import {
   mergePortableBackup,
   parsePortableBackup,
   restorePortableBackup,
-  serializePortableBackup
+  serializePortableBackup,
+  type PortableWatchlistBackup
 } from '../data/portable-watchlist';
 import { applyImportTransaction } from '../data/import-transaction';
 import type { CurrentStockStore } from '../state/current-stock-store';
@@ -72,18 +73,30 @@ export class WatchlistTransferService {
       );
       if (confirmed !== '完整恢复') return;
     }
+    const result = mode.value === 'replace'
+      ? 'replace'
+      : 'merge';
+    const recoveryUri = await this.applyBackup(backup, result);
+    void vscode.window.showInformationMessage(`数据导入完成（${result === 'replace' ? '完整恢复' : '智能合并'}）。恢复备份：${recoveryUri.fsPath}`);
+  }
+
+  currentBackup(): PortableWatchlistBackup {
+    return createPortableBackup(this.watchlist.snapshot(), this.current.get(), this.pluginVersion);
+  }
+
+  async applyBackup(backup: PortableWatchlistBackup, mode: 'merge' | 'replace'): Promise<vscode.Uri> {
     const beforeWatchlist = this.watchlist.snapshot();
     const beforeCurrent = this.current.get();
     const recovery = createPortableBackup(beforeWatchlist, beforeCurrent, this.pluginVersion);
     const recoveryUri = await this.writeRecoveryBackup(recovery);
-    const result = mode.value === 'replace'
+    const result = mode === 'replace'
       ? restorePortableBackup(backup)
       : mergePortableBackup(beforeWatchlist, beforeCurrent, backup);
     await applyImportTransaction(result, { watchlist: beforeWatchlist, currentCode: beforeCurrent }, {
       replaceWatchlist: (data) => this.watchlist.replace(data),
       setCurrentCode: (code) => this.current.set(code)
     }).catch((error) => { throw new Error(`${errorMessage(error)}；恢复文件：${recoveryUri.fsPath}`); });
-    void vscode.window.showInformationMessage(`数据导入完成（${mode.value === 'replace' ? '完整恢复' : '智能合并'}）。恢复备份：${recoveryUri.fsPath}`);
+    return recoveryUri;
   }
 
   private async writeRecoveryBackup(backup: ReturnType<typeof createPortableBackup>): Promise<vscode.Uri> {
