@@ -72,4 +72,15 @@ describe('watchlist webview initialization', () => {
     expect(source).not.toContain("prompt('");
     expect(source).not.toContain("confirm('");
   });
+
+  it('pins holdings in a separate top tree node and removes color tones', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain("groupSection('持仓','__holdings__'");
+    expect(source).toContain("wrap.className='group'+(isHoldings?' holdings-group':'')");
+    expect(source).toContain('&&!isHoldingEntry(x)');
+    expect(source).toContain('function isHoldingEntry(entry)');
+    expect(source).toContain('function setTone(el,v){void el;void v}');
+    expect(source).not.toContain('var(--vscode-charts-red)');
+    expect(source).not.toContain('var(--vscode-charts-green)');
+  });
 });
