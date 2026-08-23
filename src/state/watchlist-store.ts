@@ -9,6 +9,8 @@ interface PersistedWatchlist {
   entries: WatchlistEntry[];
 }
 
+export type DropPosition = 'before' | 'after';
+
 export class WatchlistStore {
   private entries: WatchlistEntry[];
   private groups: WatchlistGroup[];
@@ -91,6 +93,46 @@ export class WatchlistStore {
     await this.persist();
   }
 
+  async reorderGroup(groupId: string, targetGroupId: string, position: DropPosition): Promise<void> {
+    if (groupId === targetGroupId || !isDropPosition(position)) return;
+    const ordered = [...this.getGroups()];
+    const movingIndex = ordered.findIndex((group) => group.id === groupId);
+    if (movingIndex < 0 || !ordered.some((group) => group.id === targetGroupId)) return;
+    const [moving] = ordered.splice(movingIndex, 1);
+    const targetIndex = ordered.findIndex((group) => group.id === targetGroupId);
+    ordered.splice(targetIndex + (position === 'after' ? 1 : 0), 0, moving);
+    const ranks = new Map(ordered.map((group, index) => [group.id, index]));
+    this.groups = this.groups.map((group) => ({ ...group, sortOrder: ranks.get(group.id) ?? group.sortOrder }));
+    await this.persist();
+  }
+
+  async placeStock(code: string, targetGroupId: string, targetCode?: string, position: DropPosition = 'after'): Promise<void> {
+    const source = this.getEntry(code);
+    if (!source || isHolding(source) || !this.groups.some((group) => group.id === targetGroupId) || !isDropPosition(position)) return;
+    const target = targetCode ? this.getEntry(targetCode) : undefined;
+    if (targetCode && (!target || target.code === code || target.groupId !== targetGroupId || isHolding(target))) return;
+    const byOrder = (left: WatchlistEntry, right: WatchlistEntry) => left.sortOrder - right.sortOrder || left.code.localeCompare(right.code);
+    const targetEntries = this.entries.filter((entry) => entry.groupId === targetGroupId && !isHolding(entry) && entry.code !== code).sort(byOrder);
+    let insertionIndex = targetEntries.length;
+    if (target) {
+      insertionIndex = targetEntries.findIndex((entry) => entry.code === target.code);
+      if (position === 'after') insertionIndex += 1;
+    }
+    targetEntries.splice(insertionIndex, 0, { ...source, groupId: targetGroupId });
+    let nextEntries = this.entries.map((entry) => entry.code === code ? { ...entry, groupId: targetGroupId } : entry);
+    const affectedGroups = new Set([source.groupId, targetGroupId]);
+    for (const groupId of affectedGroups) {
+      const holdings = nextEntries.filter((entry) => entry.groupId === groupId && isHolding(entry)).sort(byOrder);
+      const ordinary = groupId === targetGroupId
+        ? targetEntries
+        : nextEntries.filter((entry) => entry.groupId === groupId && !isHolding(entry)).sort(byOrder);
+      const ranks = new Map([...holdings, ...ordinary].map((entry, index) => [entry.code, index]));
+      nextEntries = nextEntries.map((entry) => entry.groupId === groupId ? { ...entry, sortOrder: ranks.get(entry.code) ?? entry.sortOrder } : entry);
+    }
+    this.entries = nextEntries;
+    await this.persist();
+  }
+
   async addGroup(name: string): Promise<WatchlistGroup> {
     const id = `group-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const group: WatchlistGroup = { id, name: name.trim() || '新分组', sortOrder: Math.max(-1, ...this.groups.map((item) => item.sortOrder)) + 1, collapsed: false };
@@ -138,4 +180,8 @@ function isGroup(value: unknown): value is WatchlistGroup {
 
 function isHolding(entry: WatchlistEntry): boolean {
   return Number.isFinite(entry.costPrice) && Number(entry.costPrice) > 0 && Number.isFinite(entry.shares) && Number(entry.shares) > 0;
+}
+
+function isDropPosition(value: string): value is DropPosition {
+  return value === 'before' || value === 'after';
 }

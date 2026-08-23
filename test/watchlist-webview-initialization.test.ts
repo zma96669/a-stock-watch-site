@@ -95,4 +95,17 @@ describe('watchlist webview initialization', () => {
     expect(source).toContain("window.addEventListener('blur'");
     expect(source).toContain("document.addEventListener('visibilitychange'");
   });
+
+  it('supports persistent drag sorting outside the fixed holdings tree', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain("case 'reorderGroup':");
+    expect(source).toContain("case 'placeStock':");
+    expect(source).toContain('if(!isHoldings)enableGroupDrag(head,id)');
+    expect(source).toContain('stockCard(entry,!isHoldings)');
+    expect(source).toContain("type:'reorderGroup'");
+    expect(source).toContain("type:'placeStock'");
+    expect(source).toContain("event.target.closest('.stock-menu')");
+    expect(source).toContain('.drop-before');
+    expect(source).toContain('.drop-after');
+  });
 });
