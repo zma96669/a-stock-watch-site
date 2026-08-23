@@ -37,9 +37,9 @@ export class WatchlistWebviewProvider implements vscode.WebviewViewProvider, vsc
   resolveWebviewView(view: vscode.WebviewView): void {
     this.view = view;
     view.webview.options = { enableScripts: true, localResourceRoots: [this.extensionUri] };
-    view.webview.html = this.html(view.webview);
     view.webview.onDidReceiveMessage((message: WatchlistMessage) => { void this.handle(message); }, undefined, this.subscriptions);
     view.onDidDispose(() => { if (this.view === view) this.view = undefined; }, undefined, this.subscriptions);
+    view.webview.html = this.html(view.webview);
     this.postState();
   }
 
