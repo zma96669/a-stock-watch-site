@@ -10,12 +10,12 @@ import type { WatchlistData } from '../src/state/watchlist-store';
 
 const local: WatchlistData = {
   groups: [
-    { id: 'default', name: '默认分组', sortOrder: 0, collapsed: false },
+    { id: 'default', name: '我的关注', sortOrder: 0, collapsed: false },
     { id: 'bank', name: '银行', sortOrder: 1, collapsed: true }
   ],
   entries: [
-    { code: '600519', secid: '1.600519', market: 'SH', name: '贵州茅台', groupId: 'default', sortOrder: 0 },
-    { code: '002142', secid: '0.002142', market: 'SZ', name: '宁波银行', groupId: 'bank', sortOrder: 0, costPrice: 20.5, shares: 1000 }
+    { code: '600519', secid: '1.600519', market: 'SH', name: '贵州茅台', groupId: 'default', sortOrder: 0, followed: true },
+    { code: '002142', secid: '0.002142', market: 'SZ', name: '宁波银行', groupId: 'bank', sortOrder: 0, followed: false, costPrice: 20.5, shares: 1000 }
   ]
 };
 
@@ -41,18 +41,27 @@ describe('portable watchlist backup', () => {
   it('merges local-only stocks while imported duplicates win', () => {
     const imported: WatchlistData = {
       groups: [
-        { id: 'default', name: '默认分组', sortOrder: 0, collapsed: true },
+        { id: 'default', name: '我的关注', sortOrder: 0, collapsed: true },
         { id: 'bank', name: '银行', sortOrder: 1, collapsed: false }
       ],
       entries: [
-        { code: '600519', secid: '1.600519', market: 'SH', name: '贵州茅台', groupId: 'bank', sortOrder: 0, costPrice: 1500, shares: 10 }
+        { code: '600519', secid: '1.600519', market: 'SH', name: '贵州茅台', groupId: 'bank', sortOrder: 0, followed: false, costPrice: 1500, shares: 10 }
       ]
     };
     const backup = createPortableBackup(imported, '600519', '0.1.28');
     const merged = mergePortableBackup(local, '002142', backup);
     expect(merged.currentCode).toBe('600519');
     expect(merged.watchlist.entries).toHaveLength(2);
-    expect(merged.watchlist.entries.find((entry) => entry.code === '600519')).toMatchObject({ groupId: 'bank', costPrice: 1500, shares: 10, sortOrder: 0 });
+    expect(merged.watchlist.entries.find((entry) => entry.code === '600519')).toMatchObject({ groupId: 'bank', followed: false, costPrice: 1500, shares: 10, sortOrder: 0 });
     expect(merged.watchlist.entries.find((entry) => entry.code === '002142')).toMatchObject({ groupId: 'bank', costPrice: 20.5, shares: 1000, sortOrder: 1 });
+  });
+
+  it('accepts old backups without followed fields and derives their state', () => {
+    const legacy = createPortableBackup(local, '002142', '0.1.28');
+    legacy.data.groups[0].name = '默认分组';
+    legacy.data.entries.forEach((item) => { delete item.followed; });
+    const parsed = parsePortableBackup(JSON.stringify(legacy));
+    expect(parsed.data.entries.find((item) => item.code === '600519')?.followed).toBe(true);
+    expect(parsed.data.entries.find((item) => item.code === '002142')?.followed).toBe(false);
   });
 });

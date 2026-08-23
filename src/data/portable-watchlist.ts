@@ -145,7 +145,9 @@ function parseEntries(value: unknown, groups: WatchlistGroup[]): WatchlistEntry[
     const costPrice = optionalNonNegative(row.costPrice, `股票 ${row.code} 的成本价`);
     const shares = optionalNonNegative(row.shares, `股票 ${row.code} 的股数`);
     codes.add(row.code);
-    return { ...canonical, name: row.name, groupId: row.groupId, sortOrder, ...(costPrice !== undefined ? { costPrice } : {}), ...(shares !== undefined ? { shares } : {}) };
+    const followed = row.followed === undefined ? row.groupId === 'default' : row.followed;
+    if (typeof followed !== 'boolean') throw new Error(`股票 ${row.code} 的关注状态无效`);
+    return { ...canonical, name: row.name, groupId: row.groupId, sortOrder, followed, ...(costPrice !== undefined ? { costPrice } : {}), ...(shares !== undefined ? { shares } : {}) };
   });
 }
 

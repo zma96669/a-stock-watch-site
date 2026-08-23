@@ -2,7 +2,7 @@
   "name": "a-stock-watch",
   "displayName": "A股盯盘",
   "description": "在 VS Code 中查看 A 股自选股、实时行情和当日分时图。",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "publisher": "local-dev",
   "license": "MIT",
   "engines": {
@@ -34,7 +34,7 @@
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "check": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --cache=false",
     "test:watch": "vitest",
     "package": "npm run check && npm run test && npm run build && vsce package --no-dependencies --allow-missing-repository"
   },

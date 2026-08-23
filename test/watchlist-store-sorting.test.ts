@@ -35,14 +35,14 @@ function createStore(groups: WatchlistGroup[], entries: WatchlistEntry[]) {
 describe('WatchlistStore drag sorting', () => {
   it('reorders groups and persists normalized sort orders', async () => {
     const { store, saved } = createStore([group('default', 0), group('g1', 1), group('g2', 2)], []);
-    await store.reorderGroup('g2', 'default', 'before');
-    expect(store.getGroups().map((item) => item.id)).toEqual(['g2', 'default', 'g1']);
+    await store.reorderGroup('g2', 'g1', 'before');
+    expect(store.getGroups().map((item) => item.id)).toEqual(['default', 'g2', 'g1']);
     expect((saved() as { groups: WatchlistGroup[] }).groups.map((item) => item.sortOrder).sort()).toEqual([0, 1, 2]);
   });
 
   it('reorders stocks inside a group', async () => {
-    const { store } = createStore([group('default', 0)], [stock('000001', 'default', 0), stock('000002', 'default', 1), stock('000003', 'default', 2)]);
-    await store.placeStock('000003', 'default', '000001', 'before');
+    const { store } = createStore([group('default', 0), group('g1', 1)], [stock('000001', 'g1', 0), stock('000002', 'g1', 1), stock('000003', 'g1', 2)]);
+    await store.placeStock('000003', 'g1', '000001', 'before');
     expect(store.getEntries().map((item) => item.code)).toEqual(['000003', '000001', '000002']);
   });
 
@@ -58,5 +58,13 @@ describe('WatchlistStore drag sorting', () => {
     await store.placeStock(holding.code, 'g2');
     expect(store.getEntry(holding.code)?.groupId).toBe('default');
     expect((saved() as { entries: WatchlistEntry[] }).entries[0].groupId).toBe('default');
+  });
+
+  it('does not reorder the fixed followed group or drag stocks into it', async () => {
+    const { store } = createStore([group('default', 0), group('g1', 1), group('g2', 2)], [stock('000001', 'g1', 0)]);
+    await store.reorderGroup('g2', 'default', 'before');
+    await store.placeStock('000001', 'default');
+    expect(store.getGroups().map((item) => item.id)).toEqual(['default', 'g1', 'g2']);
+    expect(store.getEntry('000001')?.groupId).toBe('g1');
   });
 });

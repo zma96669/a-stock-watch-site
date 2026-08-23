@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import type { StockRef, WatchlistEntry, WatchlistGroup } from '../domain/types';
 
 const KEY = 'aStockWatch.watchlist';
-const DEFAULT_GROUP_ID = 'default';
+export const DEFAULT_GROUP_ID = 'default';
+export const DEFAULT_GROUP_NAME = '我的关注';
 
 export interface WatchlistData {
   groups: WatchlistGroup[];
@@ -20,22 +21,23 @@ export class WatchlistStore {
   constructor(private readonly state: vscode.Memento) {
     const saved = state.get<unknown>(KEY);
     if (Array.isArray(saved)) {
-      this.groups = [{ id: DEFAULT_GROUP_ID, name: '默认分组', sortOrder: 0, collapsed: false }];
-      this.entries = saved.filter(isStockRef).map((stock, index) => ({ ...stock, groupId: DEFAULT_GROUP_ID, sortOrder: index }));
+      this.groups = [defaultGroup()];
+      this.entries = saved.filter(isStockRef).map((stock, index) => ({ ...stock, groupId: DEFAULT_GROUP_ID, sortOrder: index, followed: true }));
     } else {
       const value = saved as Partial<WatchlistData> | undefined;
       this.groups = Array.isArray(value?.groups) && value.groups.length
         ? value.groups.filter(isGroup)
-        : [{ id: DEFAULT_GROUP_ID, name: '默认分组', sortOrder: 0, collapsed: false }];
-      this.entries = Array.isArray(value?.entries) ? value.entries.filter(isEntry) : [];
+        : [defaultGroup()];
+      this.entries = Array.isArray(value?.entries) ? value.entries.filter(isEntry).map(normalizeEntry) : [];
       if (!this.groups.some((group) => group.id === DEFAULT_GROUP_ID)) {
-        this.groups.unshift({ id: DEFAULT_GROUP_ID, name: '默认分组', sortOrder: -1, collapsed: false });
+        this.groups.unshift(defaultGroup(-1));
       }
+      this.groups = this.groups.map((group) => group.id === DEFAULT_GROUP_ID ? { ...group, name: DEFAULT_GROUP_NAME } : group);
     }
   }
 
   getAll(): readonly StockRef[] {
-    return this.getEntries().map(({ groupId: _groupId, sortOrder: _sortOrder, costPrice: _costPrice, shares: _shares, ...stock }) => stock);
+    return this.getEntries().map(({ groupId: _groupId, sortOrder: _sortOrder, followed: _followed, costPrice: _costPrice, shares: _shares, ...stock }) => stock);
   }
 
   get(code: string): StockRef | undefined {
@@ -68,8 +70,9 @@ export class WatchlistStore {
   }
 
   async replace(data: WatchlistData): Promise<void> {
-    this.groups = data.groups.map((group) => ({ ...group }));
-    this.entries = data.entries.map((entry) => ({ ...entry }));
+    this.groups = data.groups.map((group) => group.id === DEFAULT_GROUP_ID ? { ...group, name: DEFAULT_GROUP_NAME } : { ...group });
+    if (!this.groups.some((group) => group.id === DEFAULT_GROUP_ID)) this.groups.unshift(defaultGroup(-1));
+    this.entries = data.entries.map(normalizeEntry);
     await this.persist();
   }
 
@@ -81,7 +84,7 @@ export class WatchlistStore {
     if (this.get(stock.code)) return false;
     const group = this.groups.some((item) => item.id === groupId) ? groupId : DEFAULT_GROUP_ID;
     const maxSort = Math.max(-1, ...this.entries.filter((entry) => entry.groupId === group).map((entry) => entry.sortOrder));
-    this.entries = [...this.entries, { ...stock, groupId: group, sortOrder: maxSort + 1 }];
+    this.entries = [...this.entries, { ...stock, groupId: group, sortOrder: maxSort + 1, followed: group === DEFAULT_GROUP_ID }];
     await this.persist();
     return true;
   }
@@ -98,16 +101,26 @@ export class WatchlistStore {
     await this.persist();
   }
 
+  async setFollowed(code: string, followed: boolean): Promise<void> {
+    const entry = this.getEntry(code);
+    if (!entry || Boolean(entry.followed) === followed) return;
+    if (!followed && entry.groupId === DEFAULT_GROUP_ID) {
+      throw new Error('请先把这只股票移动到普通分组，再取消关注');
+    }
+    this.entries = this.entries.map((item) => item.code === code ? { ...item, followed } : item);
+    await this.persist();
+  }
+
   async move(code: string, groupId: string): Promise<void> {
     const entry = this.getEntry(code);
     if (!entry || !this.groups.some((group) => group.id === groupId) || entry.groupId === groupId) return;
     const maxSort = Math.max(-1, ...this.entries.filter((item) => item.groupId === groupId).map((item) => item.sortOrder));
-    this.entries = this.entries.map((item) => item.code === code ? { ...item, groupId, sortOrder: maxSort + 1 } : item);
+    this.entries = this.entries.map((item) => item.code === code ? { ...item, groupId, sortOrder: maxSort + 1, followed: item.followed || groupId === DEFAULT_GROUP_ID } : item);
     await this.persist();
   }
 
   async reorderGroup(groupId: string, targetGroupId: string, position: DropPosition): Promise<void> {
-    if (groupId === targetGroupId || !isDropPosition(position)) return;
+    if (groupId === DEFAULT_GROUP_ID || targetGroupId === DEFAULT_GROUP_ID || groupId === targetGroupId || !isDropPosition(position)) return;
     const ordered = [...this.getGroups()];
     const movingIndex = ordered.findIndex((group) => group.id === groupId);
     if (movingIndex < 0 || !ordered.some((group) => group.id === targetGroupId)) return;
@@ -121,7 +134,7 @@ export class WatchlistStore {
 
   async placeStock(code: string, targetGroupId: string, targetCode?: string, position: DropPosition = 'after'): Promise<void> {
     const source = this.getEntry(code);
-    if (!source || isHolding(source) || !this.groups.some((group) => group.id === targetGroupId) || !isDropPosition(position)) return;
+    if (!source || isHolding(source) || targetGroupId === DEFAULT_GROUP_ID || !this.groups.some((group) => group.id === targetGroupId) || !isDropPosition(position)) return;
     const target = targetCode ? this.getEntry(targetCode) : undefined;
     if (targetCode && (!target || target.code === code || target.groupId !== targetGroupId || isHolding(target))) return;
     const byOrder = (left: WatchlistEntry, right: WatchlistEntry) => left.sortOrder - right.sortOrder || left.code.localeCompare(right.code);
@@ -147,15 +160,16 @@ export class WatchlistStore {
   }
 
   async addGroup(name: string): Promise<WatchlistGroup> {
+    if (!name.trim()) throw new Error('分组名称不能为空');
     const id = `group-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const group: WatchlistGroup = { id, name: name.trim() || '新分组', sortOrder: Math.max(-1, ...this.groups.map((item) => item.sortOrder)) + 1, collapsed: false };
+    const group: WatchlistGroup = { id, name: name.trim(), sortOrder: Math.max(-1, ...this.groups.map((item) => item.sortOrder)) + 1, collapsed: false };
     this.groups = [...this.groups, group];
     await this.persist();
     return group;
   }
 
   async renameGroup(id: string, name: string): Promise<void> {
-    if (!this.groups.some((group) => group.id === id)) return;
+    if (id === DEFAULT_GROUP_ID || !this.groups.some((group) => group.id === id)) return;
     this.groups = this.groups.map((group) => group.id === id ? { ...group, name: name.trim() || group.name } : group);
     await this.persist();
   }
@@ -183,7 +197,8 @@ function isStockRef(value: unknown): value is StockRef {
 
 function isEntry(value: unknown): value is WatchlistEntry {
   const entry = value as Partial<WatchlistEntry> | undefined;
-  return isStockRef(value) && typeof entry?.groupId === 'string' && Number.isFinite(entry.sortOrder);
+  return isStockRef(value) && typeof entry?.groupId === 'string' && Number.isFinite(entry.sortOrder)
+    && (entry.followed === undefined || typeof entry.followed === 'boolean');
 }
 
 function isGroup(value: unknown): value is WatchlistGroup {
@@ -197,4 +212,12 @@ function isHolding(entry: WatchlistEntry): boolean {
 
 function isDropPosition(value: string): value is DropPosition {
   return value === 'before' || value === 'after';
+}
+
+function defaultGroup(sortOrder = 0): WatchlistGroup {
+  return { id: DEFAULT_GROUP_ID, name: DEFAULT_GROUP_NAME, sortOrder, collapsed: false };
+}
+
+function normalizeEntry(entry: WatchlistEntry): WatchlistEntry {
+  return { ...entry, followed: entry.followed ?? (entry.groupId === DEFAULT_GROUP_ID) };
 }

@@ -71,6 +71,8 @@ describe('watchlist webview initialization', () => {
     expect(source).toContain("title:'设置 '+entry.name+' 持仓'");
     expect(source).not.toContain("prompt('");
     expect(source).not.toContain("confirm('");
+    expect(source).toContain("value:'',placeholder:'例如：银行'");
+    expect(source).toContain("if(!v.name.trim())return false");
   });
 
   it('pins holdings in a separate top tree node and removes color tones', () => {
@@ -100,12 +102,21 @@ describe('watchlist webview initialization', () => {
     const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
     expect(source).toContain("case 'reorderGroup':");
     expect(source).toContain("case 'placeStock':");
-    expect(source).toContain('if(!isHoldings)enableGroupDrag(head,id)');
-    expect(source).toContain('stockCard(entry,!isHoldings)');
+    expect(source).toContain('if(!isHoldings&&!isFollowed)enableGroupDrag(head,id)');
+    expect(source).toContain('stockCard(entry,!isHoldings&&!isFollowed)');
     expect(source).toContain("type:'reorderGroup'");
     expect(source).toContain("type:'placeStock'");
     expect(source).toContain("event.target.closest('.stock-menu')");
     expect(source).toContain('.drop-before');
     expect(source).toContain('.drop-after');
+  });
+
+  it('renders 我的关注 as a duplicate view and offers follow toggles', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain("state.entries.filter(x=>x.followed)");
+    expect(source).toContain("filter(g=>g.id!=='${DEFAULT_GROUP_ID}')");
+    expect(source).toContain("follow.textContent=entry.followed?'取消关注':'关注'");
+    expect(source).toContain("case 'follow':");
+    expect(source).toContain("case 'unfollow':");
   });
 });

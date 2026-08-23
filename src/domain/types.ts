@@ -10,6 +10,7 @@ export interface StockRef {
 export interface WatchlistEntry extends StockRef {
   groupId: string;
   sortOrder: number;
+  followed?: boolean;
   costPrice?: number;
   shares?: number;
 }
