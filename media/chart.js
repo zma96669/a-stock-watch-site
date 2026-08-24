@@ -10,8 +10,8 @@
   addEventListener('message', (event) => {
     if (event.data?.type !== 'snapshot') return;
     snapshot = event.data.payload;
-    const quote = snapshot.currentCode ? snapshot.quotes[snapshot.currentCode] : undefined;
-    nameEl.textContent = quote ? `${quote.name}  ${quote.code}` : '请选择股票';
+    const quote = snapshot.activeQuote || (snapshot.currentCode ? snapshot.quotes[snapshot.currentCode] : undefined);
+    nameEl.textContent = quote ? `${quote.name}  ${quote.kind === 'index' ? '大盘指数' : quote.code}` : '请选择股票';
     const pct = quote?.changePercent;
     const latest = snapshot.intraday?.at(-1);
     metaEl.textContent = quote ? `最新 ${fmt(quote.price)}　涨跌 ${pct == null ? '--' : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}　成交量 ${compact(quote.volume)}　量比 ${latest?.volumeRatio == null ? '--' : latest.volumeRatio.toFixed(2) + 'x'}` : '';

@@ -11,7 +11,7 @@ export class StatusBarController implements vscode.Disposable {
     this.item.tooltip = '点击切换下一只自选股';
     this.unsubscribe = quotes.subscribe((snapshot) => {
       const code = current.get();
-      const quote = code ? snapshot.quotes[code] : undefined;
+      const quote = snapshot.activeQuote ?? (code ? snapshot.quotes[code] : undefined);
       if (!quote) {
         this.item.text = '$(graph) A股盯盘';
       } else {
@@ -30,4 +30,3 @@ export class StatusBarController implements vscode.Disposable {
     this.item.dispose();
   }
 }
-

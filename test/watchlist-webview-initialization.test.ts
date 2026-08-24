@@ -17,7 +17,7 @@ describe('watchlist webview initialization', () => {
     expect(source).toContain('payload: this.statePayload()');
     expect(source).toContain('const initialState = serializeForInlineScript(payload)');
     expect(source).toContain('let state=${initialState}');
-    expect(source).toContain('const initialMarkup = initialWatchlistMarkup(payload.groups, payload.entries)');
+    expect(source).toContain('const initialMarkup = initialWatchlistMarkup(payload.indices, payload.groups, payload.entries)');
     expect(source).toContain('<div id="app">${initialMarkup}</div>');
     expect(source).not.toContain('let state={groups:[],entries:[]');
     expect(source.indexOf('renderSafely();vscode.postMessage')).toBeGreaterThan(-1);
@@ -130,5 +130,16 @@ describe('watchlist webview initialization', () => {
     expect(source).toContain('<div class="group-children">');
     expect(source).toContain("head.setAttribute('aria-expanded',String(!collapsed))");
     expect(source).not.toContain("(collapsed?'▶':'▼')");
+  });
+
+  it('pins the three market indices above watchlist groups with mini intraday charts', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain('indices: MARKET_INDICES');
+    expect(source).toContain("app.appendChild(marketSection())");
+    expect(source).toContain("wrap.className='market-overview'");
+    expect(source).toContain("type:'selectIndex'");
+    expect(source).toContain('function sparkPath(');
+    expect(source).toContain('state.snapshot.indexIntraday?.[key]');
+    expect(source).toContain('.market-spark');
   });
 });

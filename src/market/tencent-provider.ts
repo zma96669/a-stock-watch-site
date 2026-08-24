@@ -77,7 +77,9 @@ export function parseTencentMinuteResponse(payload: unknown, stock: StockRef): I
     if (previousVolume !== undefined && (cumulativeVolume < previousVolume || cumulativeAmount < (previousAmount ?? 0))) return [];
     const volume = cumulativeVolume - (previousVolume ?? 0);
     const amount = cumulativeAmount - (previousAmount ?? 0);
-    const averagePrice = cumulativeVolume > 0 ? cumulativeAmount / (cumulativeVolume * 100) : price;
+    const averagePrice = stock.kind === 'index'
+      ? price
+      : cumulativeVolume > 0 ? cumulativeAmount / (cumulativeVolume * 100) : price;
     points.push({
       time: `${tradingDate.slice(0, 4)}-${tradingDate.slice(4, 6)}-${tradingDate.slice(6, 8)} ${clock.slice(0, 2)}:${clock.slice(2)}`,
       price,

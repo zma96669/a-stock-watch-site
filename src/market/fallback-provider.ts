@@ -1,4 +1,5 @@
 import type { IntradayPoint, MarketDataProvider, StockQuote, StockRef } from '../domain/types';
+import { instrumentKey } from './market-indices';
 
 type SourceKind = 'quotes' | 'intraday';
 type Logger = (message: string) => void;
@@ -22,11 +23,11 @@ export class TencentPrimaryProvider implements MarketDataProvider {
       if (signal?.aborted) throw error;
       primaryReason = message(error);
     }
-    const valid = new Map(primaryRows.filter(isCompleteQuote).map((quote) => [quote.code, quote]));
-    const missing = stocks.filter((stock) => !valid.has(stock.code));
+    const valid = new Map(primaryRows.filter(isCompleteQuote).map((quote) => [instrumentKey(quote), quote]));
+    const missing = stocks.filter((stock) => !valid.has(instrumentKey(stock)));
     if (!missing.length) {
       this.report('quotes', 'tencent');
-      return stocks.map((stock) => valid.get(stock.code)!);
+      return stocks.map((stock) => valid.get(instrumentKey(stock))!);
     }
 
     let fallbackRows: StockQuote[];
@@ -35,11 +36,11 @@ export class TencentPrimaryProvider implements MarketDataProvider {
     } catch (error) {
       throw new Error(`Tencent quotes incomplete (${primaryReason || `${missing.length} missing`}); East Money fallback failed: ${message(error)}`);
     }
-    for (const quote of fallbackRows) if (isCompleteQuote(quote)) valid.set(quote.code, quote);
-    const unresolved = stocks.filter((stock) => !valid.has(stock.code));
+    for (const quote of fallbackRows) if (isCompleteQuote(quote)) valid.set(instrumentKey(quote), quote);
+    const unresolved = stocks.filter((stock) => !valid.has(instrumentKey(stock)));
     if (unresolved.length) throw new Error(`No complete quote data for ${unresolved.map((stock) => stock.code).join(', ')}`);
     this.report('quotes', 'fallback', primaryReason || `${missing.length} incomplete`);
-    return stocks.map((stock) => valid.get(stock.code)!);
+    return stocks.map((stock) => valid.get(instrumentKey(stock))!);
   }
 
   async fetchIntraday(stock: StockRef, signal?: AbortSignal): Promise<IntradayPoint[]> {
@@ -75,7 +76,10 @@ export class TencentPrimaryProvider implements MarketDataProvider {
 }
 
 function isCompleteQuote(quote: StockQuote): boolean {
-  return quote.price !== null && quote.previousClose !== null && quote.amount !== null && quote.turnoverRate !== null;
+  return quote.price !== null
+    && quote.previousClose !== null
+    && quote.amount !== null
+    && (quote.kind === 'index' || quote.turnoverRate !== null);
 }
 
 function isCompleteIntraday(points: IntradayPoint[]): boolean {

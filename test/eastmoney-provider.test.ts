@@ -17,4 +17,18 @@ describe('EastMoney parser', () => {
     expect(points).toHaveLength(1);
     expect(points[0]).toMatchObject({ price: 10.05, averagePrice: 10.05, volume: 123 });
   });
+  it('keeps the Shanghai index separate from the Shenzhen stock with the same code', () => {
+    const stock = createStockRef('000001', '平安银行');
+    const index = { code: '000001', secid: '1.000001', market: 'SH' as const, name: '上证指数', kind: 'index' as const };
+    const rows = parseQuoteResponse({ data: { diff: [
+      { f12: '000001', f13: 0, f14: '平安银行', f2: 11.2, f3: 1, f4: .11, f5: 1, f6: 2, f8: .4, f18: 11.09 },
+      { f12: '000001', f13: 1, f14: '上证指数', f2: 3400, f3: .5, f4: 17, f5: 3, f6: 4, f8: null, f18: 3383 }
+    ] } }, [stock, index]);
+    expect(rows.map((row) => [row.secid, row.name])).toEqual([['0.000001', '平安银行'], ['1.000001', '上证指数']]);
+  });
+  it('uses the index level for its average line', () => {
+    const index = { code: '000001', secid: '1.000001', market: 'SH' as const, name: '上证指数', kind: 'index' as const };
+    const points = parseTrendResponse({ data: { trends: ['2026-08-24 09:30,3900,3902.7,3903,3899,1,2,170000'] } }, index);
+    expect(points[0]).toMatchObject({ price: 3902.7, averagePrice: 3902.7 });
+  });
 });

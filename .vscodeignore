@@ -6,6 +6,7 @@ coverage/**
 src/**
 test/**
 docs/**
+website/**
 chajian-staging/**
 tsconfig.json
 vitest.config.ts

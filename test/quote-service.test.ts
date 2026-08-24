@@ -109,12 +109,12 @@ describe('QuoteService', () => {
     const service = new QuoteService(provider, () => [stockA], () => stockA.code, () => 1, () => 3);
     service.start();
     await vi.advanceTimersByTimeAsync(0);
-    expect([provider.quoteCalls, provider.intradayCalls]).toEqual([1, 1]);
+    expect([provider.quoteCalls, provider.intradayCalls]).toEqual([1, 4]);
 
     await vi.advanceTimersByTimeAsync(1000);
-    expect([provider.quoteCalls, provider.intradayCalls]).toEqual([2, 1]);
+    expect([provider.quoteCalls, provider.intradayCalls]).toEqual([2, 4]);
     await vi.advanceTimersByTimeAsync(2000);
-    expect([provider.quoteCalls, provider.intradayCalls]).toEqual([4, 2]);
+    expect([provider.quoteCalls, provider.intradayCalls]).toEqual([4, 8]);
     service.stop();
   });
 
@@ -122,7 +122,28 @@ describe('QuoteService', () => {
     const provider = new CountingProvider();
     const service = new QuoteService(provider, () => [stockA], () => stockA.code, () => 2, () => 5);
     await service.refreshNow();
-    expect([provider.quoteCalls, provider.intradayCalls]).toEqual([1, 1]);
+    expect([provider.quoteCalls, provider.intradayCalls]).toEqual([1, 4]);
+  });
+
+  it('keeps same-code index quotes isolated and switches the active chart target', async () => {
+    const provider = new FakeProvider();
+    const service = new QuoteService(provider, () => [stockB], () => stockB.code, () => 2, () => 5);
+    await service.refreshNow();
+    expect(service.getSnapshot().quotes['000001'].secid).toBe('0.000001');
+    expect(service.getSnapshot().indexQuotes.sh000001.secid).toBe('1.000001');
+
+    service.selectIndex('sh000001');
+    await flush();
+    expect(service.getSnapshot()).toMatchObject({
+      currentCode: '000001',
+      currentIndexKey: 'sh000001',
+      activeQuote: { secid: '1.000001', kind: 'index' }
+    });
+
+    service.selectStock();
+    await flush();
+    expect(service.getSnapshot()).toMatchObject({ currentCode: '000001', activeQuote: { secid: '0.000001' } });
+    expect(service.getSnapshot().currentIndexKey).toBeUndefined();
   });
 });
 

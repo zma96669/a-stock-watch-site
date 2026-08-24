@@ -5,6 +5,12 @@ export interface StockRef {
   secid: string;
   market: StockMarket;
   name: string;
+  kind?: 'stock' | 'index';
+}
+
+export interface MarketIndexRef extends StockRef {
+  key: string;
+  kind: 'index';
 }
 
 export interface WatchlistEntry extends StockRef {
@@ -44,7 +50,11 @@ export interface IntradayPoint {
 
 export interface MarketSnapshot {
   quotes: Record<string, StockQuote>;
+  indexQuotes: Record<string, StockQuote>;
+  indexIntraday: Record<string, IntradayPoint[]>;
   currentCode?: string;
+  currentIndexKey?: string;
+  activeQuote?: StockQuote;
   intraday: IntradayPoint[];
   previousClose?: number;
   updatedAt?: string;

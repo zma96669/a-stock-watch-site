@@ -34,4 +34,16 @@ describe('Tencent provider parser', () => {
     const payload = { data: { sh600519: { data: { date: '20260817', data: ['0930 10 100 1000', '0931 10 90 900'] } } } };
     expect(parseTencentMinuteResponse(payload, stock)).toEqual([]);
   });
+  it('keeps same-code instruments separate by exchange symbol', () => {
+    const stock = createStockRef('000001', '平安银行');
+    const index = { code: '000001', secid: '1.000001', market: 'SH' as const, name: '上证指数', kind: 'index' as const };
+    const fields = (name: string, price: string) => { const row = Array.from({ length: 39 }, () => ''); row[1] = name; row[3] = price; row[4] = price; row[35] = `${price}/1/1000`; row[38] = '0.1'; return row.join('~'); };
+    const rows = parseTencentQuoteResponse(`v_sz000001="${fields('平安银行','11.20')}";v_sh000001="${fields('上证指数','3400.00')}";`, [stock, index]);
+    expect(rows.map((row) => [row.secid, row.name])).toEqual([['0.000001', '平安银行'], ['1.000001', '上证指数']]);
+  });
+  it('uses the index level as average price instead of applying stock lot math', () => {
+    const index = { code: '000001', secid: '1.000001', market: 'SH' as const, name: '上证指数', kind: 'index' as const };
+    const payload = { data: { sh000001: { data: { date: '20260824', data: ['0930 3902.70 4492312 7502643374.70'] } } } };
+    expect(parseTencentMinuteResponse(payload, index)[0]).toMatchObject({ price: 3902.7, averagePrice: 3902.7 });
+  });
 });

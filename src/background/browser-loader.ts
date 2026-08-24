@@ -16,6 +16,7 @@ interface BackgroundState {
   previousClose?: number;
   currentCode?: string;
   quotes?: Record<string, { turnoverRate?: number | null }>;
+  activeQuote?: { turnoverRate?: number | null };
   background?: { visible?: boolean; opacity: number; showAverage: boolean; showVolume: boolean; lineWidth: number };
 }
 
@@ -154,7 +155,8 @@ function start(): void {
     drawLatest(ctx, latest, positions.at(-1)!, previousClose, chartWidth, priceBottom, x, y, baseOpacity, layout.showScale);
     updatePriceScale(scale, gridLevels, latest, previousClose, layout, priceBottom, y);
     updateTimeAxis(timeAxis, layout, rect.height);
-    const turnoverRate = state?.currentCode ? state.quotes?.[state.currentCode]?.turnoverRate : undefined;
+    const turnoverRate = state?.activeQuote?.turnoverRate
+      ?? (state?.currentCode ? state.quotes?.[state.currentCode]?.turnoverRate : undefined);
     updateActivitySummary(summary, latest.amount, turnoverRate, latest.volumeRatio, options.showVolume, layout, rect.height);
   }
 

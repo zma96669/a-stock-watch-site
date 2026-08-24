@@ -75,13 +75,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       } catch (error) { void vscode.window.showErrorMessage(`添加失败：${message(error)}`); }
     }),
     vscode.commands.registerCommand('aStockWatch.removeCurrent', async () => {
+      if (service?.getSnapshot().currentIndexKey) return;
       const code = current.get(); if (!code) return;
       await watchlist.remove(code);
       await current.set(watchlist.getAll()[0]?.code);
     }),
-    vscode.commands.registerCommand('aStockWatch.selectStock', async (code: string) => { await current.set(code); }),
-    vscode.commands.registerCommand('aStockWatch.previousStock', () => rotate(-1, watchlist, current)),
-    vscode.commands.registerCommand('aStockWatch.nextStock', () => rotate(1, watchlist, current)),
+    vscode.commands.registerCommand('aStockWatch.selectStock', async (code: string) => { await current.set(code); service?.selectStock(); }),
+    vscode.commands.registerCommand('aStockWatch.previousStock', async () => { await rotate(-1, watchlist, current); service?.selectStock(); }),
+    vscode.commands.registerCommand('aStockWatch.nextStock', async () => { await rotate(1, watchlist, current); service?.selectStock(); }),
     vscode.commands.registerCommand('aStockWatch.refresh', () => service?.refreshNow()),
     vscode.commands.registerCommand('aStockWatch.openChart', () => service && ChartPanel.show(context.extensionUri, service)),
     vscode.commands.registerCommand('aStockWatch.manageData', async () => { try { await transfer.manage(); } catch (error) { void vscode.window.showErrorMessage(`数据管理失败：${message(error)}`); } }),
@@ -116,7 +117,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!bridgeInfo) return;
       try { await installer.repair(bridgeInfo); } catch (error) { void vscode.window.showErrorMessage(`修复失败：${message(error)}`); }
     }),
-    watchlist.onDidChange(() => { void service?.refreshQuotesNow(); })
+    watchlist.onDidChange(() => { void service?.refreshQuotesNow(); }),
+    current.onDidChange(() => service?.selectStock()),
+    { dispose: service.subscribe(() => bridge?.notify()) }
   );
   service.start();
 }

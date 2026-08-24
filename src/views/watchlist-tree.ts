@@ -7,7 +7,7 @@ import type { WatchlistStore } from '../state/watchlist-store';
 export class WatchlistTreeProvider implements vscode.TreeDataProvider<StockRef>, vscode.Disposable {
   private readonly emitter = new vscode.EventEmitter<StockRef | undefined>();
   readonly onDidChangeTreeData = this.emitter.event;
-  private snapshot: MarketSnapshot = { quotes: {}, intraday: [], stale: false };
+  private snapshot: MarketSnapshot = { quotes: {}, indexQuotes: {}, indexIntraday: {}, intraday: [], stale: false };
   private readonly unsubscribe: () => void;
 
   constructor(
@@ -60,4 +60,3 @@ function formatPercent(value: number | null | undefined): string {
   if (value == null) return '--';
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
-

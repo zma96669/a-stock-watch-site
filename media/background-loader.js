@@ -264,7 +264,7 @@
       drawLatest(ctx, latest, positions.at(-1), previousClose, chartWidth, priceBottom, x, y, baseOpacity, layout.showScale);
       updatePriceScale(scale, gridLevels, latest, previousClose, layout, priceBottom, y);
       updateTimeAxis(timeAxis, layout, rect.height);
-      const turnoverRate = state?.currentCode ? state.quotes?.[state.currentCode]?.turnoverRate : void 0;
+      const turnoverRate = state?.activeQuote?.turnoverRate ?? (state?.currentCode ? state.quotes?.[state.currentCode]?.turnoverRate : void 0);
       updateActivitySummary(summary, latest.amount, turnoverRate, latest.volumeRatio, options.showVolume, layout, rect.height);
     }
     function createScale() {

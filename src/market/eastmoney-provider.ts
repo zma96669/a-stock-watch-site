@@ -1,6 +1,6 @@
 import type { IntradayPoint, MarketDataProvider, StockQuote, StockRef } from '../domain/types';
 
-const QUOTE_FIELDS = 'f12,f14,f2,f3,f4,f5,f6,f8,f17,f18';
+const QUOTE_FIELDS = 'f12,f13,f14,f2,f3,f4,f5,f6,f8,f17,f18';
 const TREND_FIELDS_1 = 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13';
 const TREND_FIELDS_2 = 'f51,f52,f53,f54,f55,f56,f57,f58';
 
@@ -13,12 +13,16 @@ function finiteNumber(value: unknown): number | null {
 export function parseQuoteResponse(payload: unknown, requested: StockRef[]): StockQuote[] {
   const rows = (payload as { data?: { diff?: unknown[] } } | null)?.data?.diff;
   if (!Array.isArray(rows)) return [];
-  const requestedByCode = new Map(requested.map((stock) => [stock.code, stock]));
+  const requestedBySecid = new Map(requested.map((stock) => [stock.secid, stock]));
+  const requestedByCode = new Map<string, StockRef[]>();
+  requested.forEach((stock) => requestedByCode.set(stock.code, [...requestedByCode.get(stock.code) ?? [], stock]));
   return rows.flatMap((raw) => {
     if (!raw || typeof raw !== 'object') return [];
     const row = raw as Record<string, unknown>;
     const code = String(row.f12 ?? '');
-    const stock = requestedByCode.get(code);
+    const market = finiteNumber(row.f13);
+    const stock = (market !== null ? requestedBySecid.get(`${market}.${code}`) : undefined)
+      ?? (requestedByCode.get(code)?.length === 1 ? requestedByCode.get(code)![0] : undefined);
     if (!stock) return [];
     const price = finiteNumber(row.f2);
     const previousClose = finiteNumber(row.f18);
@@ -39,7 +43,7 @@ export function parseQuoteResponse(payload: unknown, requested: StockRef[]): Sto
   });
 }
 
-export function parseTrendResponse(payload: unknown): IntradayPoint[] {
+export function parseTrendResponse(payload: unknown, stock?: StockRef): IntradayPoint[] {
   const trends = (payload as { data?: { trends?: unknown[] } } | null)?.data?.trends;
   if (!Array.isArray(trends)) return [];
   const points: IntradayPoint[] = [];
@@ -48,7 +52,7 @@ export function parseTrendResponse(payload: unknown): IntradayPoint[] {
     const fields = raw.split(',');
     // trends2 fields: time, open, close, high, low, volume, amount, average.
     const price = finiteNumber(fields[2]);
-    const averagePrice = finiteNumber(fields[7]);
+    const averagePrice = stock?.kind === 'index' ? price : finiteNumber(fields[7]);
     const volume = finiteNumber(fields[5]);
     const amount = finiteNumber(fields[6]);
     if (!fields[0] || price === null || averagePrice === null) continue;
@@ -102,6 +106,6 @@ export class EastMoneyProvider implements MarketDataProvider {
     url.searchParams.set('fields2', TREND_FIELDS_2);
     url.searchParams.set('ndays', '1');
     url.searchParams.set('iscr', '0');
-    return parseTrendResponse(await fetchJson(url, signal));
+    return parseTrendResponse(await fetchJson(url, signal), stock);
   }
 }
