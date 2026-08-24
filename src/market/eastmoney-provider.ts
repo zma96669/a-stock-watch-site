@@ -1,6 +1,6 @@
 import type { IntradayPoint, MarketDataProvider, StockQuote, StockRef } from '../domain/types';
 
-const QUOTE_FIELDS = 'f12,f13,f14,f2,f3,f4,f5,f6,f8,f17,f18';
+const QUOTE_FIELDS = 'f12,f13,f14,f2,f3,f4,f5,f6,f8,f10,f17,f18';
 const TREND_FIELDS_1 = 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13';
 const TREND_FIELDS_2 = 'f51,f52,f53,f54,f55,f56,f57,f58';
 
@@ -38,6 +38,7 @@ export function parseQuoteResponse(payload: unknown, requested: StockRef[]): Sto
       volume: finiteNumber(row.f5),
       amount: finiteNumber(row.f6),
       turnoverRate: finiteNumber(row.f8),
+      volumeRatio: finiteNumber(row.f10),
       suspended: price === null || price === 0
     }];
   });

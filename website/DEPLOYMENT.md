@@ -12,4 +12,4 @@
 
    `https://<用户名>.github.io/<仓库名>/`
 
-下载按钮使用 `website/downloads/a-stock-watch-0.1.33.vsix`，因此部署后即可直接下载当前版本。以后发布新版本时，替换该文件并同步修改页面版本号即可。
+下载按钮使用 `website/downloads/a-stock-watch-0.1.34.vsix`，因此部署后即可直接下载当前版本。以后发布新版本时，替换该文件并同步修改页面版本号即可。

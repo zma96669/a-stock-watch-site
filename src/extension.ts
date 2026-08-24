@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { BackgroundBridge } from './background/bridge-server';
 import { BackgroundInstaller } from './background/installer';
 import { StatusBarController } from './controllers/status-bar-controller';
+import { AlertController } from './controllers/alert-controller';
 import type { BackgroundOptions, StockRef } from './domain/types';
 import { EastMoneyProvider } from './market/eastmoney-provider';
 import { TencentProvider } from './market/tencent-provider';
@@ -16,6 +17,7 @@ import { CurrentStockStore } from './state/current-stock-store';
 import { BackgroundVisibilityStore } from './state/background-visibility-store';
 import { SessionOpacityController } from './state/session-opacity-controller';
 import { WatchlistStore } from './state/watchlist-store';
+import { AlertStore } from './state/alert-store';
 import { ChartPanel } from './views/chart-panel';
 import { WatchlistWebviewProvider } from './views/watchlist-webview';
 
@@ -30,6 +32,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await context.globalState.update(BACKGROUND_TOKEN_KEY, bridgeToken);
   }
   const watchlist = new WatchlistStore(context.globalState);
+  const alerts = new AlertStore(context.globalState);
   const current = new CurrentStockStore(context.globalState);
   const backgroundVisibility = new BackgroundVisibilityStore(context.globalState);
   const sessionOpacity = new SessionOpacityController();
@@ -41,10 +44,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     () => vscode.workspace.getConfiguration('aStockWatch').get<number>('refreshInterval', 2),
     () => vscode.workspace.getConfiguration('aStockWatch').get<number>('intradayRefreshInterval', 5)
   );
-  const watchlistView = new WatchlistWebviewProvider(context.extensionUri, watchlist, current, service);
-  const transfer = new WatchlistTransferService(context, watchlist, current);
+  const watchlistView = new WatchlistWebviewProvider(context.extensionUri, watchlist, current, service, alerts);
+  const transfer = new WatchlistTransferService(context, watchlist, current, alerts);
   const githubSync = new GitHubSyncService(context, transfer);
   const status = new StatusBarController(current, service);
+  const alertController = new AlertController(alerts, service, () => watchlist.getEntries());
   const installer = new BackgroundInstaller(context);
   bridge = new BackgroundBridge(() => ({
     ...service?.getSnapshot(),
@@ -55,7 +59,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   try { await installer.reconcile(); } catch (error) { console.warn('A股盯盘背景安装状态同步失败', error); }
 
   context.subscriptions.push(
-    watchlist, current, watchlistView, status,
+    watchlist, alerts, current, watchlistView, status, alertController,
     vscode.window.registerWebviewViewProvider('aStockWatch.watchlist', watchlistView, { webviewOptions: { retainContextWhenHidden: true } }),
     vscode.commands.registerCommand('aStockWatch.addStock', async () => {
       const input = await vscode.window.showInputBox({ prompt: '输入股票名称或六位代码', placeHolder: '例如 贵州茅台 或 600519' });
@@ -84,6 +88,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('aStockWatch.previousStock', async () => { await rotate(-1, watchlist, current); service?.selectStock(); }),
     vscode.commands.registerCommand('aStockWatch.nextStock', async () => { await rotate(1, watchlist, current); service?.selectStock(); }),
     vscode.commands.registerCommand('aStockWatch.refresh', () => service?.refreshNow()),
+    vscode.commands.registerCommand('aStockWatch.showAlerts', () => alertController.show()),
+    vscode.commands.registerCommand('aStockWatch.testAlert', () => alertController.test()),
+    vscode.commands.registerCommand('aStockWatch.markAlertsRead', (id?: string) => alertController.markRead(id)),
+    vscode.commands.registerCommand('aStockWatch.muteAlertToday', (id: string) => alertController.muteToday(id)),
     vscode.commands.registerCommand('aStockWatch.openChart', () => service && ChartPanel.show(context.extensionUri, service)),
     vscode.commands.registerCommand('aStockWatch.manageData', async () => { try { await transfer.manage(); } catch (error) { void vscode.window.showErrorMessage(`数据管理失败：${message(error)}`); } }),
     vscode.commands.registerCommand('aStockWatch.exportData', async () => { try { await transfer.exportData(); } catch (error) { void vscode.window.showErrorMessage(`导出失败：${message(error)}`); } }),

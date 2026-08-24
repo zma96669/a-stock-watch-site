@@ -25,6 +25,7 @@ export function parseTencentQuoteResponse(payload: string, requested: StockRef[]
     const previousClose = finiteNumber(fields[4]);
     const amount = parseTotalAmount(fields);
     const turnoverRate = finiteNumber(fields[38]);
+    const volumeRatio = finiteNumber(fields[49]);
     rows.push({
       ...stock,
       name: fields[1] || stock.name,
@@ -35,6 +36,7 @@ export function parseTencentQuoteResponse(payload: string, requested: StockRef[]
       volume: finiteNumber(fields[36]),
       amount,
       turnoverRate,
+      volumeRatio,
       suspended: price === null || price === 0
     });
   }

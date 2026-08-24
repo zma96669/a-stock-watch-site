@@ -36,6 +36,7 @@ export interface StockQuote extends StockRef {
   volume: number | null;
   amount: number | null;
   turnoverRate: number | null;
+  volumeRatio?: number | null;
   suspended: boolean;
 }
 
@@ -58,8 +59,68 @@ export interface MarketSnapshot {
   intraday: IntradayPoint[];
   previousClose?: number;
   updatedAt?: string;
+  quoteUpdatedAt?: string;
   stale: boolean;
   error?: string;
+}
+
+export type AlertSeverity = 'preview' | 'normal' | 'important';
+
+export type AlertRuleType =
+  | 'price-above'
+  | 'price-below'
+  | 'change-rise'
+  | 'change-fall'
+  | 'holding-profit'
+  | 'holding-loss'
+  | 'rapid-rise'
+  | 'rapid-fall'
+  | 'volume-ratio'
+  | 'amount-spike'
+  | 'turnover'
+  | 'relative-strength'
+  | 'relative-weakness';
+
+export interface AlertRule {
+  id: string;
+  code: string;
+  type: AlertRuleType;
+  threshold: number;
+  windowMinutes?: number;
+  proximityPercent?: number;
+  severity: AlertSeverity;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AlertEvent {
+  id: string;
+  ruleId: string;
+  code: string;
+  stockName: string;
+  type: AlertRuleType;
+  severity: AlertSeverity;
+  title: string;
+  message: string;
+  value: number;
+  threshold: number;
+  triggeredAt: string;
+  read: boolean;
+}
+
+export interface AlertRuleRuntime {
+  active: boolean;
+  previewActive?: boolean;
+  lastTriggeredAt?: string;
+  previewLastTriggeredAt?: string;
+}
+
+export interface AlertRuntimeData {
+  tradingDate: string;
+  events: AlertEvent[];
+  mutedRuleIds: string[];
+  ruleStates: Record<string, AlertRuleRuntime>;
 }
 
 export interface MarketDataProvider {

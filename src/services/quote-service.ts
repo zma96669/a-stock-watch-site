@@ -98,6 +98,7 @@ export class QuoteService {
         activeQuote,
         previousClose: activeQuote?.previousClose ?? this.snapshot.previousClose,
         updatedAt: new Date().toISOString(),
+        quoteUpdatedAt: new Date().toISOString(),
       };
     } catch (error) {
       if (!isAbort(error) && this.quoteController === controller) {

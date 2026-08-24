@@ -64,4 +64,15 @@ describe('portable watchlist backup', () => {
     expect(parsed.data.entries.find((item) => item.code === '600519')?.followed).toBe(true);
     expect(parsed.data.entries.find((item) => item.code === '002142')?.followed).toBe(false);
   });
+
+  it('round trips alert rules while remaining compatible with backups without alerts', () => {
+    const rule = {
+      id: 'rule-1', code: '600519', type: 'price-above' as const, threshold: 1500, proximityPercent: .5,
+      severity: 'important' as const, enabled: true, createdAt: '2026-08-23T10:00:00.000Z', updatedAt: '2026-08-23T10:00:00.000Z'
+    };
+    const backup = createPortableBackup(local, '600519', '0.1.34', new Date('2026-08-23T10:00:00.000Z'), [rule]);
+    const parsed = parsePortableBackup(serializePortableBackup(backup));
+    expect(restorePortableBackup(parsed).alerts).toEqual([rule]);
+    expect(restorePortableBackup(parsePortableBackup(serializePortableBackup(createPortableBackup(local, '600519', '0.1.33')))).alerts).toBeUndefined();
+  });
 });

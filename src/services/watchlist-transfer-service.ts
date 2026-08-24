@@ -11,6 +11,7 @@ import {
 } from '../data/portable-watchlist';
 import { applyImportTransaction } from '../data/import-transaction';
 import type { CurrentStockStore } from '../state/current-stock-store';
+import type { AlertStore } from '../state/alert-store';
 import type { WatchlistStore } from '../state/watchlist-store';
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -21,7 +22,8 @@ export class WatchlistTransferService {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly watchlist: WatchlistStore,
-    private readonly current: CurrentStockStore
+    private readonly current: CurrentStockStore,
+    private readonly alerts?: AlertStore
   ) {
     this.pluginVersion = String(context.extension.packageJSON.version ?? 'unknown');
   }
@@ -42,7 +44,7 @@ export class WatchlistTransferService {
       saveLabel: '导出备份'
     });
     if (!destination) return;
-    const backup = createPortableBackup(this.watchlist.snapshot(), this.current.get(), this.pluginVersion);
+    const backup = this.currentBackup();
     await vscode.workspace.fs.writeFile(destination, encode(serializePortableBackup(backup)));
     void vscode.window.showInformationMessage(`A股盯盘数据已导出：${destination.fsPath}`);
   }
@@ -81,20 +83,22 @@ export class WatchlistTransferService {
   }
 
   currentBackup(): PortableWatchlistBackup {
-    return createPortableBackup(this.watchlist.snapshot(), this.current.get(), this.pluginVersion);
+    return createPortableBackup(this.watchlist.snapshot(), this.current.get(), this.pluginVersion, new Date(), this.alerts?.getRules());
   }
 
   async applyBackup(backup: PortableWatchlistBackup, mode: 'merge' | 'replace'): Promise<vscode.Uri> {
     const beforeWatchlist = this.watchlist.snapshot();
     const beforeCurrent = this.current.get();
-    const recovery = createPortableBackup(beforeWatchlist, beforeCurrent, this.pluginVersion);
+    const recovery = createPortableBackup(beforeWatchlist, beforeCurrent, this.pluginVersion, new Date(), this.alerts?.getRules());
     const recoveryUri = await this.writeRecoveryBackup(recovery);
+    const alerts = this.alerts;
     const result = mode === 'replace'
       ? restorePortableBackup(backup)
-      : mergePortableBackup(beforeWatchlist, beforeCurrent, backup);
-    await applyImportTransaction(result, { watchlist: beforeWatchlist, currentCode: beforeCurrent }, {
+      : mergePortableBackup(beforeWatchlist, beforeCurrent, backup, this.alerts?.getRules());
+    await applyImportTransaction(result, { watchlist: beforeWatchlist, currentCode: beforeCurrent, ...(this.alerts ? { alerts: [...this.alerts.getRules()] } : {}) }, {
       replaceWatchlist: (data) => this.watchlist.replace(data),
-      setCurrentCode: (code) => this.current.set(code)
+      setCurrentCode: (code) => this.current.set(code),
+      replaceAlerts: alerts ? (rules) => alerts.replaceRules(rules) : undefined
     }).catch((error) => { throw new Error(`${errorMessage(error)}；恢复文件：${recoveryUri.fsPath}`); });
     return recoveryUri;
   }

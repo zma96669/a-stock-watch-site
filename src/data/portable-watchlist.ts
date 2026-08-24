@@ -1,4 +1,4 @@
-import type { WatchlistEntry, WatchlistGroup } from '../domain/types';
+import type { AlertRule, WatchlistEntry, WatchlistGroup } from '../domain/types';
 import { createStockRef } from '../market/stock-code';
 import type { WatchlistData } from '../state/watchlist-store';
 
@@ -10,15 +10,16 @@ export interface PortableWatchlistBackup {
   version: typeof PORTABLE_VERSION;
   exportedAt: string;
   pluginVersion: string;
-  data: WatchlistData & { currentCode?: string };
+  data: WatchlistData & { currentCode?: string; alerts?: AlertRule[] };
 }
 
 export interface ImportResult {
   watchlist: WatchlistData;
   currentCode?: string;
+  alerts?: AlertRule[];
 }
 
-export function createPortableBackup(watchlist: WatchlistData, currentCode: string | undefined, pluginVersion: string, now = new Date()): PortableWatchlistBackup {
+export function createPortableBackup(watchlist: WatchlistData, currentCode: string | undefined, pluginVersion: string, now = new Date(), alerts?: readonly AlertRule[]): PortableWatchlistBackup {
   return {
     format: PORTABLE_FORMAT,
     version: PORTABLE_VERSION,
@@ -27,7 +28,8 @@ export function createPortableBackup(watchlist: WatchlistData, currentCode: stri
     data: {
       groups: watchlist.groups.map((group) => ({ ...group })),
       entries: watchlist.entries.map((entry) => ({ ...entry })),
-      ...(currentCode ? { currentCode } : {})
+      ...(currentCode ? { currentCode } : {}),
+      ...(alerts ? { alerts: alerts.map((rule) => ({ ...rule })) } : {})
     }
   };
 }
@@ -51,12 +53,13 @@ export function parsePortableBackup(text: string): PortableWatchlistBackup {
   if (currentCode !== undefined && (typeof currentCode !== 'string' || !entries.some((entry) => entry.code === currentCode))) {
     throw new Error('当前股票不在备份的自选股中');
   }
+  const alerts = data.alerts === undefined ? undefined : parseAlerts(data.alerts);
   return {
     format: PORTABLE_FORMAT,
     version: PORTABLE_VERSION,
     exportedAt: root.exportedAt,
     pluginVersion: root.pluginVersion,
-    data: { groups, entries, ...(typeof currentCode === 'string' ? { currentCode } : {}) }
+    data: { groups, entries, ...(typeof currentCode === 'string' ? { currentCode } : {}), ...(alerts ? { alerts } : {}) }
   };
 }
 
@@ -66,11 +69,12 @@ export function restorePortableBackup(backup: PortableWatchlistBackup): ImportRe
       groups: backup.data.groups.map((group) => ({ ...group })),
       entries: backup.data.entries.map((entry) => ({ ...entry }))
     },
-    currentCode: backup.data.currentCode
+    currentCode: backup.data.currentCode,
+    ...(backup.data.alerts ? { alerts: backup.data.alerts.map((rule) => ({ ...rule })) } : {})
   };
 }
 
-export function mergePortableBackup(local: WatchlistData, localCurrentCode: string | undefined, backup: PortableWatchlistBackup): ImportResult {
+export function mergePortableBackup(local: WatchlistData, localCurrentCode: string | undefined, backup: PortableWatchlistBackup, localAlerts: readonly AlertRule[] = []): ImportResult {
   const localGroups = [...local.groups].sort(bySortOrder).map((group) => ({ ...group }));
   const groupIdMap = new Map<string, string>();
   let nextGroupOrder = Math.max(-1, ...localGroups.map((group) => group.sortOrder)) + 1;
@@ -108,7 +112,32 @@ export function mergePortableBackup(local: WatchlistData, localCurrentCode: stri
   const currentCode = backup.data.currentCode && allCodes.has(backup.data.currentCode)
     ? backup.data.currentCode
     : localCurrentCode && allCodes.has(localCurrentCode) ? localCurrentCode : mergedEntries[0]?.code;
-  return { watchlist: { groups: localGroups, entries: mergedEntries }, currentCode };
+  return {
+    watchlist: { groups: localGroups, entries: mergedEntries },
+    currentCode,
+    ...(backup.data.alerts ? { alerts: mergeAlerts(localAlerts, backup.data.alerts) } : {})
+  };
+}
+
+function mergeAlerts(local: readonly AlertRule[], remote: readonly AlertRule[]): AlertRule[] {
+  const merged = new Map(local.map((rule) => [rule.id, { ...rule }]));
+  for (const rule of remote) {
+    const existing = merged.get(rule.id);
+    if (!existing || Date.parse(rule.updatedAt) >= Date.parse(existing.updatedAt)) merged.set(rule.id, { ...rule });
+  }
+  return [...merged.values()].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt) || left.id.localeCompare(right.id));
+}
+
+function parseAlerts(value: unknown): AlertRule[] {
+  if (!Array.isArray(value) || value.length > 10000) throw new Error('提醒规则数量异常');
+  return value.map((item, index) => {
+    const row = object(item, `提醒规则 ${index + 1}`) as Partial<AlertRule>;
+    if (typeof row.id !== 'string' || !row.id || typeof row.code !== 'string' || !/^\d{6}$/.test(row.code)) throw new Error(`提醒规则 ${index + 1} 无效`);
+    if (typeof row.type !== 'string' || typeof row.threshold !== 'number' || !Number.isFinite(row.threshold) || row.threshold <= 0) throw new Error(`提醒规则 ${index + 1} 阈值无效`);
+    if (row.severity !== 'preview' && row.severity !== 'normal' && row.severity !== 'important') throw new Error(`提醒规则 ${index + 1} 等级无效`);
+    if (typeof row.enabled !== 'boolean' || typeof row.createdAt !== 'string' || typeof row.updatedAt !== 'string') throw new Error(`提醒规则 ${index + 1} 状态无效`);
+    return { ...row } as AlertRule;
+  });
 }
 
 function parseGroups(value: unknown): WatchlistGroup[] {
