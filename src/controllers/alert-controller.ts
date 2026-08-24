@@ -46,6 +46,11 @@ export class AlertController implements vscode.Disposable {
     await this.alerts.muteToday(ruleId);
   }
 
+  async muteAllToday(): Promise<void> {
+    for (const rule of this.alerts.getRules()) await this.alerts.muteToday(rule.id);
+    void vscode.window.showInformationMessage('今日行情提醒已全部静默');
+  }
+
   private async processQueue(): Promise<void> {
     if (this.processing || !this.queued) return;
     this.processing = true;

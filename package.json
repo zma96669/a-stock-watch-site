@@ -37,6 +37,7 @@
     "onCommand:aStockWatch.testAlert",
     "onCommand:aStockWatch.markAlertsRead",
     "onCommand:aStockWatch.muteAlertToday",
+    "onCommand:aStockWatch.muteAllAlertsToday",
     "onStartupFinished"
   ],
   "scripts": {
@@ -109,6 +110,10 @@
       {
         "command": "aStockWatch.muteAlertToday",
         "title": "A股盯盘：今日不再提醒"
+      },
+      {
+        "command": "aStockWatch.muteAllAlertsToday",
+        "title": "A股盯盘：今日全部静默"
       },
       {
         "command": "aStockWatch.manageData",

@@ -116,10 +116,9 @@ interface QuoteHistoryPoint { at: number; price: number; amount?: number }
 interface Measurement { active: boolean; value: number; title: string; unit: string; stockName: string }
 
 function createEvent(rule: AlertRule, result: Measurement, now: Date): AlertEvent {
-  const direction = ['price-below', 'change-fall', 'holding-loss', 'rapid-fall', 'relative-weakness'].includes(rule.type) ? '跌破' : '达到';
   return {
     id: randomUUID(), ruleId: rule.id, code: rule.code, stockName: result.stockName, type: rule.type, severity: rule.severity,
-    title: `${result.title}${direction}提醒`,
+    title: `${result.title}提醒`,
     message: `${formatNumber(result.value)}${result.unit}，阈值 ${formatNumber(rule.threshold)}${result.unit}`,
     value: result.value, threshold: rule.threshold, triggeredAt: now.toISOString(), read: false
   };
@@ -185,8 +184,8 @@ export function isChinaTradingTime(date: Date): boolean {
 
 function titleFor(type: AlertRuleType): string {
   return {
-    'price-above': '价格', 'price-below': '价格', 'change-rise': '涨幅', 'change-fall': '跌幅',
-    'holding-profit': '持仓收益', 'holding-loss': '持仓收益', 'rapid-rise': '快速上涨', 'rapid-fall': '快速下跌',
+    'price-above': '价格突破', 'price-below': '价格跌破', 'change-rise': '涨幅达到', 'change-fall': '跌幅达到',
+    'holding-profit': '持仓盈利达到', 'holding-loss': '持仓亏损达到', 'rapid-rise': '快速上涨', 'rapid-fall': '快速下跌',
     'volume-ratio': '量比', 'amount-spike': '分钟放量', turnover: '换手率', 'relative-strength': '相对大盘强势', 'relative-weakness': '相对大盘弱势'
   }[type];
 }

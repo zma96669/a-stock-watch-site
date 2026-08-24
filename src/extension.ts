@@ -92,6 +92,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('aStockWatch.testAlert', () => alertController.test()),
     vscode.commands.registerCommand('aStockWatch.markAlertsRead', (id?: string) => alertController.markRead(id)),
     vscode.commands.registerCommand('aStockWatch.muteAlertToday', (id: string) => alertController.muteToday(id)),
+    vscode.commands.registerCommand('aStockWatch.muteAllAlertsToday', () => alertController.muteAllToday()),
     vscode.commands.registerCommand('aStockWatch.openChart', () => service && ChartPanel.show(context.extensionUri, service)),
     vscode.commands.registerCommand('aStockWatch.manageData', async () => { try { await transfer.manage(); } catch (error) { void vscode.window.showErrorMessage(`数据管理失败：${message(error)}`); } }),
     vscode.commands.registerCommand('aStockWatch.exportData', async () => { try { await transfer.exportData(); } catch (error) { void vscode.window.showErrorMessage(`导出失败：${message(error)}`); } }),
