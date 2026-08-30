@@ -21,6 +21,7 @@ describe('extension contributions', () => {
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.toggleBackgroundVisibility');
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.increaseBackgroundOpacity');
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.decreaseBackgroundOpacity');
+    expect(manifest.activationEvents).toContain('onCommand:aStockWatch.toggleBackgroundIndicator');
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.manageData');
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.exportData');
     expect(manifest.activationEvents).toContain('onCommand:aStockWatch.importData');
@@ -31,6 +32,8 @@ describe('extension contributions', () => {
       command: 'aStockWatch.toggleBackgroundVisibility'
     }));
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.manageData' }));
+    expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.toggleBackgroundIndicator' }));
+    expect(manifest.contributes.keybindings).toContainEqual(expect.objectContaining({ command: 'aStockWatch.toggleBackgroundIndicator' }));
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.exportData' }));
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.importData' }));
     expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'aStockWatch.githubSync' }));
@@ -48,6 +51,11 @@ describe('extension contributions', () => {
       command: 'aStockWatch.decreaseBackgroundOpacity',
       key: 'ctrl+alt+shift+['
     });
+    expect(manifest.contributes.keybindings).toContainEqual({
+      command: 'aStockWatch.toggleBackgroundIndicator',
+      key: 'ctrl+alt+m'
+    });
     expect(manifest.contributes.configuration.properties['aStockWatch.background.showVolume'].default).toBe(true);
+    expect(manifest.contributes.configuration.properties['aStockWatch.background.indicator'].default).toBe('volume');
   });
 });

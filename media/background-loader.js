@@ -133,6 +133,35 @@
     return value.toFixed(digits).replace(/\.0+$|(?<=\.[0-9])0$/, "");
   }
 
+  // src/background/macd-geometry.ts
+  function macdSeries(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+    if (!validPeriod(fastPeriod) || !validPeriod(slowPeriod) || !validPeriod(signalPeriod) || fastPeriod >= slowPeriod) return [];
+    const fastAlpha = 2 / (fastPeriod + 1);
+    const slowAlpha = 2 / (slowPeriod + 1);
+    const signalAlpha = 2 / (signalPeriod + 1);
+    let fastEma;
+    let slowEma;
+    let dea;
+    return prices.map((price) => {
+      if (!Number.isFinite(price)) return void 0;
+      fastEma = fastEma === void 0 ? price : fastEma + fastAlpha * (price - fastEma);
+      slowEma = slowEma === void 0 ? price : slowEma + slowAlpha * (price - slowEma);
+      const dif = fastEma - slowEma;
+      dea = dea === void 0 ? dif : dea + signalAlpha * (dif - dea);
+      return { dif, dea, histogram: 2 * (dif - dea) };
+    });
+  }
+  function macdScale(values) {
+    const maximum = values.reduce((current, value) => {
+      if (!value) return current;
+      return Math.max(current, Math.abs(value.dif), Math.abs(value.dea), Math.abs(value.histogram));
+    }, 0);
+    return maximum > 0 && Number.isFinite(maximum) ? maximum : 0;
+  }
+  function validPeriod(value) {
+    return Number.isInteger(value) && value >= 1 && value <= 500;
+  }
+
   // src/background/browser-loader.ts
   var GRAPHITE = "#858a90";
   var loaderGlobal = globalThis;
@@ -235,7 +264,8 @@
       const minimapLeft = hostRect && minimapRect ? minimapRect.left - hostRect.left : void 0;
       const layout = chartLayout(rect.width, minimapLeft);
       const chartWidth = layout.chartWidth;
-      const options = state?.background ?? { visible: true, opacity: 0.08, showAverage: true, showVolume: true, lineWidth: 0.75 };
+      const options = state?.background ?? { visible: true, opacity: 0.08, showAverage: true, showVolume: true, indicator: "volume", lineWidth: 0.75 };
+      const indicator = options.indicator === "macd" ? "macd" : "volume";
       const baseOpacity = clamp(options.opacity, 0.02, 0.35);
       applyOverlayOpacity(scale, timeAxis, summary, baseOpacity);
       const positions = points.map(
@@ -252,8 +282,11 @@
       const gridLevels = priceGridLevels(range.min, range.max, previousClose);
       const timeMarkers = tradingTimeMarkers();
       drawGuideLines(ctx, chartWidth, priceBottom, baseOpacity, gridLevels, timeMarkers);
-      if (options.showVolume) {
-        drawAmountBars(ctx, points, positions, x, chartWidth, volumeTop, volumeBottom, previousClose, baseOpacity);
+      const showIndicator = indicator === "macd" || options.showVolume;
+      const macd = indicator === "macd" ? macdSeries(points.map((point) => point.price)) : [];
+      if (showIndicator) {
+        if (indicator === "macd") drawMacd(ctx, macd, positions, x, chartWidth, volumeTop, volumeBottom, baseOpacity);
+        else drawAmountBars(ctx, points, positions, x, chartWidth, volumeTop, volumeBottom, previousClose, baseOpacity);
         drawVolumeDivider(ctx, chartWidth, volumeTop, baseOpacity);
       }
       drawZeroLine(ctx, chartWidth, zeroY, baseOpacity);
@@ -265,7 +298,7 @@
       updatePriceScale(scale, gridLevels, latest, previousClose, layout, priceBottom, y);
       updateTimeAxis(timeAxis, layout, rect.height);
       const turnoverRate = state?.activeQuote?.turnoverRate ?? (state?.currentCode ? state.quotes?.[state.currentCode]?.turnoverRate : void 0);
-      updateActivitySummary(summary, latest.amount, turnoverRate, latest.volumeRatio, options.showVolume, layout, rect.height);
+      updateActivitySummary(summary, latest.amount, turnoverRate, latest.volumeRatio, indicator, macd.at(-1), showIndicator, layout, rect.height);
     }
     function createScale() {
       const scale = document.createElement("div");
@@ -335,6 +368,56 @@
         ctx.fillStyle = point.price > previous ? "#a16f72" : point.price < previous ? "#6f9181" : GRAPHITE;
         ctx.fillRect(x(positions[index]) - barWidth / 2, baseline - barHeight, barWidth, barHeight);
       });
+      ctx.restore();
+    }
+    function drawMacd(ctx, values, positions, x, width, top, bottom, opacity) {
+      const scale = macdScale(values);
+      if (scale <= 0) return;
+      const zeroY = (top + bottom) / 2;
+      const range = Math.max(1e-6, scale * 1.12);
+      const y = (value) => zeroY - value / range * (bottom - top) / 2;
+      const barWidth = clamp(width / 240 * 0.58, 0.75, 3);
+      ctx.save();
+      ctx.globalAlpha = clamp(opacity * 0.62, 0.012, 0.16);
+      values.forEach((value, index) => {
+        if (!value) return;
+        const barY = y(value.histogram);
+        const barHeight = Math.max(0.5, Math.abs(barY - zeroY));
+        ctx.fillStyle = value.histogram >= 0 ? "#8c7478" : "#708a80";
+        ctx.fillRect(x(positions[index]) - barWidth / 2, value.histogram >= 0 ? barY : zeroY, barWidth, barHeight);
+      });
+      ctx.restore();
+      drawMacdLine(ctx, values, positions, x, y, "dif", "#858a90", opacity, 0.9);
+      drawMacdLine(ctx, values, positions, x, y, "dea", "#777b80", opacity, 0.72);
+      ctx.save();
+      ctx.globalAlpha = clamp(opacity * 0.48, 8e-3, 0.12);
+      ctx.strokeStyle = GRAPHITE;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(0, zeroY);
+      ctx.lineTo(width, zeroY);
+      ctx.stroke();
+      ctx.restore();
+    }
+    function drawMacdLine(ctx, values, positions, x, y, field, color, opacity, alpha) {
+      ctx.save();
+      ctx.globalAlpha = clamp(opacity * alpha, 0.01, 0.19);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.65;
+      ctx.beginPath();
+      let started = false;
+      values.forEach((value, index) => {
+        if (!value) return;
+        const px = x(positions[index]);
+        const py = y(value[field]);
+        if (started) ctx.lineTo(px, py);
+        else {
+          ctx.moveTo(px, py);
+          started = true;
+        }
+      });
+      if (started) ctx.stroke();
       ctx.restore();
     }
     function drawVolumeDivider(ctx, width, y, opacity) {
@@ -469,13 +552,21 @@
       if (!visible) return;
       axis.style.width = `${layout.chartWidth}px`;
     }
-    function updateActivitySummary(summary, latestAmount, turnoverRate, volumeRatio, show, layout, height) {
+    function updateActivitySummary(summary, latestAmount, turnoverRate, volumeRatio, indicator, latestMacd, show, layout, height) {
       const visible = show && layout.chartWidth >= 520 && height >= 180;
       summary.style.display = visible ? "block" : "none";
       if (!visible) return;
-      const width = Math.min(176, layout.chartWidth - 8);
+      const width = Math.min(indicator === "macd" ? 240 : 176, layout.chartWidth - 8);
       summary.style.left = `${Math.max(4, layout.chartWidth - width - 4)}px`;
       summary.style.width = `${width}px`;
+      if (indicator === "macd") {
+        const dif = latestMacd ? latestMacd.dif.toFixed(4) : "--";
+        const dea = latestMacd ? latestMacd.dea.toFixed(4) : "--";
+        const histogram = latestMacd ? latestMacd.histogram.toFixed(4) : "--";
+        const label2 = `MACD  DIF ${dif} \xB7 DEA ${dea} \xB7 \u67F1 ${histogram}`;
+        if (summary.textContent !== label2) summary.textContent = label2;
+        return;
+      }
       const ratio = volumeRatio == null || !Number.isFinite(volumeRatio) ? "--" : `${volumeRatio.toFixed(2)}x`;
       const label = `\u989D ${formatTradingAmount(latestAmount)} \xB7 \u6362 ${formatTurnoverRate(turnoverRate)} \xB7 \u91CF\u6BD4 ${ratio}`;
       if (summary.textContent !== label) summary.textContent = label;

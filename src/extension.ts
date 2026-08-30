@@ -25,6 +25,7 @@ import { WatchlistWebviewProvider } from './views/watchlist-webview';
 let service: QuoteService | undefined;
 let bridge: BackgroundBridge | undefined;
 const BACKGROUND_TOKEN_KEY = 'aStockWatch.backgroundBridgeToken';
+const BACKGROUND_INDICATOR_KEY = 'indicator';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   let bridgeToken = context.globalState.get<string>(BACKGROUND_TOKEN_KEY);
@@ -117,6 +118,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       sessionOpacity.decrease(configuredBackgroundOpacity());
       bridge?.notify();
     }),
+    vscode.commands.registerCommand('aStockWatch.toggleBackgroundIndicator', async () => {
+      const config = vscode.workspace.getConfiguration('aStockWatch.background');
+      const current = config.get<'volume' | 'macd'>(BACKGROUND_INDICATOR_KEY, 'volume');
+      const next = current === 'macd' ? 'volume' : 'macd';
+      await config.update(BACKGROUND_INDICATOR_KEY, next, vscode.ConfigurationTarget.Global);
+      bridge?.notify();
+      void vscode.window.setStatusBarMessage(`行情背景指标：${next === 'macd' ? 'MACD' : '成交额'}`, 2200);
+    }),
     vscode.commands.registerCommand('aStockWatch.enableBackground', async () => {
       if (!bridgeInfo) bridgeInfo = await bridge?.start();
       if (!bridgeInfo) throw new Error('背景行情桥接启动失败');
@@ -153,6 +162,7 @@ function backgroundOptions(visible: boolean, sessionOpacity: SessionOpacityContr
     opacity: sessionOpacity.effective(config.get<number>('opacity', .08)),
     showAverage: config.get<boolean>('showAverage', true),
     showVolume: config.get<boolean>('showVolume', true),
+    indicator: config.get<'volume' | 'macd'>(BACKGROUND_INDICATOR_KEY, 'volume') === 'macd' ? 'macd' : 'volume',
     lineWidth: config.get<number>('lineWidth', .75)
   };
 }

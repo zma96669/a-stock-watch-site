@@ -2,7 +2,7 @@
   "name": "a-stock-watch",
   "displayName": "A股盯盘",
   "description": "在 VS Code 中查看 A 股自选股、实时行情和当日分时图。",
-  "version": "0.1.35",
+  "version": "0.1.36",
   "publisher": "local-dev",
   "license": "MIT",
   "engines": {
@@ -25,6 +25,7 @@
     "onCommand:aStockWatch.toggleBackgroundVisibility",
     "onCommand:aStockWatch.increaseBackgroundOpacity",
     "onCommand:aStockWatch.decreaseBackgroundOpacity",
+    "onCommand:aStockWatch.toggleBackgroundIndicator",
     "onCommand:aStockWatch.manageData",
     "onCommand:aStockWatch.exportData",
     "onCommand:aStockWatch.importData",
@@ -166,6 +167,10 @@
         "title": "A股盯盘：降低背景清晰度"
       },
       {
+        "command": "aStockWatch.toggleBackgroundIndicator",
+        "title": "A股盯盘：切换背景指标"
+      },
+      {
         "command": "aStockWatch.previousStock",
         "title": "A股盯盘：上一只股票"
       },
@@ -198,6 +203,10 @@
       {
         "command": "aStockWatch.decreaseBackgroundOpacity",
         "key": "ctrl+alt+shift+["
+      },
+      {
+        "command": "aStockWatch.toggleBackgroundIndicator",
+        "key": "ctrl+alt+m"
       }
     ],
     "menus": {
@@ -216,6 +225,11 @@
           "command": "aStockWatch.openChart",
           "when": "view == aStockWatch.watchlist",
           "group": "navigation@3"
+        },
+        {
+          "command": "aStockWatch.toggleBackgroundIndicator",
+          "when": "view == aStockWatch.watchlist",
+          "group": "navigation@3.5"
         },
         {
           "command": "aStockWatch.manageData",
@@ -261,7 +275,20 @@
         "aStockWatch.background.showVolume": {
           "type": "boolean",
           "default": true,
-          "description": "背景图显示每分钟成交额和当前换手率"
+          "description": "成交额指标模式下显示每分钟成交额和当前换手率"
+        },
+        "aStockWatch.background.indicator": {
+          "type": "string",
+          "enum": [
+            "volume",
+            "macd"
+          ],
+          "enumDescriptions": [
+            "成交额柱状图（默认）",
+            "MACD（DIF、DEA 和柱体）"
+          ],
+          "default": "volume",
+          "description": "背景图底部指标窗；也可使用 Ctrl+Alt+M 快速切换"
         },
         "aStockWatch.background.lineWidth": {
           "type": "number",

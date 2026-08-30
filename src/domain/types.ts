@@ -178,10 +178,13 @@ export interface MarketDataProvider {
   fetchIntraday(stock: StockRef, signal?: AbortSignal): Promise<IntradayPoint[]>;
 }
 
+export type BackgroundIndicator = 'volume' | 'macd';
+
 export interface BackgroundOptions {
   visible: boolean;
   opacity: number;
   showAverage: boolean;
   showVolume: boolean;
+  indicator: BackgroundIndicator;
   lineWidth: number;
 }
