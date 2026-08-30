@@ -142,4 +142,15 @@ describe('watchlist webview initialization', () => {
     expect(source).toContain('state.snapshot.indexIntraday?.[key]');
     expect(source).toContain('.market-spark');
   });
+
+  it('keeps holdings and the cleared section in separate scroll layers and exposes trade actions', () => {
+    const source = readFileSync(resolve('src/views/watchlist-webview.ts'), 'utf8');
+    expect(source).toContain('className=\'stock-list-scroll\'');
+    expect(source).toContain('.holdings-group .group-children{min-height:0;overflow-y:auto');
+    expect(source).toContain('clearedSection(state.portfolio.cleared)');
+    expect(source).toContain('configureTrade(entry,\'buy\')');
+    expect(source).toContain('configureTrade(entry,\'sell\')');
+    expect(source).toContain("case 'buy':");
+    expect(source).toContain("case 'sell':");
+  });
 });

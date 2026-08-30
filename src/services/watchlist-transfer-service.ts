@@ -12,6 +12,8 @@ import {
 import { applyImportTransaction } from '../data/import-transaction';
 import type { CurrentStockStore } from '../state/current-stock-store';
 import type { AlertStore } from '../state/alert-store';
+import type { PortfolioStore } from '../state/portfolio-store';
+import { migrateLegacyPortfolio } from '../state/portfolio-store';
 import type { WatchlistStore } from '../state/watchlist-store';
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -23,7 +25,8 @@ export class WatchlistTransferService {
     private readonly context: vscode.ExtensionContext,
     private readonly watchlist: WatchlistStore,
     private readonly current: CurrentStockStore,
-    private readonly alerts?: AlertStore
+    private readonly alerts?: AlertStore,
+    private readonly portfolio?: PortfolioStore
   ) {
     this.pluginVersion = String(context.extension.packageJSON.version ?? 'unknown');
   }
@@ -83,22 +86,27 @@ export class WatchlistTransferService {
   }
 
   currentBackup(): PortableWatchlistBackup {
-    return createPortableBackup(this.watchlist.snapshot(), this.current.get(), this.pluginVersion, new Date(), this.alerts?.getRules());
+    return createPortableBackup(this.watchlist.snapshot(), this.current.get(), this.pluginVersion, new Date(), this.alerts?.getRules(), this.portfolio?.getData());
   }
 
   async applyBackup(backup: PortableWatchlistBackup, mode: 'merge' | 'replace'): Promise<vscode.Uri> {
     const beforeWatchlist = this.watchlist.snapshot();
     const beforeCurrent = this.current.get();
-    const recovery = createPortableBackup(beforeWatchlist, beforeCurrent, this.pluginVersion, new Date(), this.alerts?.getRules());
+    const recovery = createPortableBackup(beforeWatchlist, beforeCurrent, this.pluginVersion, new Date(), this.alerts?.getRules(), this.portfolio?.getData());
     const recoveryUri = await this.writeRecoveryBackup(recovery);
     const alerts = this.alerts;
-    const result = mode === 'replace'
+    const portfolio = this.portfolio;
+    const baseResult = mode === 'replace'
       ? restorePortableBackup(backup)
-      : mergePortableBackup(beforeWatchlist, beforeCurrent, backup, this.alerts?.getRules());
-    await applyImportTransaction(result, { watchlist: beforeWatchlist, currentCode: beforeCurrent, ...(this.alerts ? { alerts: [...this.alerts.getRules()] } : {}) }, {
+      : mergePortableBackup(beforeWatchlist, beforeCurrent, backup, this.alerts?.getRules(), this.portfolio?.getData());
+    const result = mode === 'replace' && !baseResult.portfolio && this.portfolio
+      ? { ...baseResult, portfolio: migrateLegacyPortfolio(baseResult.watchlist.entries) }
+      : baseResult;
+    await applyImportTransaction(result, { watchlist: beforeWatchlist, currentCode: beforeCurrent, ...(this.alerts ? { alerts: [...this.alerts.getRules()] } : {}), ...(this.portfolio ? { portfolio: this.portfolio.getData() } : {}) }, {
       replaceWatchlist: (data) => this.watchlist.replace(data),
       setCurrentCode: (code) => this.current.set(code),
-      replaceAlerts: alerts ? (rules) => alerts.replaceRules(rules) : undefined
+      replaceAlerts: alerts ? (rules) => alerts.replaceRules(rules) : undefined,
+      replacePortfolio: portfolio ? (data) => portfolio.replace(data ?? { positions: [], trades: [], cleared: [] }) : undefined
     }).catch((error) => { throw new Error(`${errorMessage(error)}；恢复文件：${recoveryUri.fsPath}`); });
     return recoveryUri;
   }

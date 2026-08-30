@@ -28,6 +28,56 @@ export interface WatchlistGroup {
   collapsed: boolean;
 }
 
+export type TradeSide = 'buy' | 'sell';
+
+export interface TradeRecord {
+  id: string;
+  positionId: string;
+  code: string;
+  stockName: string;
+  side: TradeSide;
+  price: number;
+  shares: number;
+  tradedAt: string;
+  note?: string;
+  legacy?: boolean;
+}
+
+export interface PortfolioPosition {
+  id: string;
+  code: string;
+  stockName: string;
+  shares: number;
+  averageCost: number;
+  totalBuyAmount: number;
+  totalSellAmount: number;
+  realizedProfit: number;
+  openedAt: string;
+  updatedAt: string;
+}
+
+export interface ClearedPosition {
+  id: string;
+  positionId: string;
+  code: string;
+  stockName: string;
+  totalBuyAmount: number;
+  totalSellAmount: number;
+  realizedProfit: number;
+  returnPercent: number;
+  tradeCount: number;
+  openedAt: string;
+  closedAt: string;
+  note?: string;
+  trades: TradeRecord[];
+}
+
+export interface PortfolioData {
+  positions: PortfolioPosition[];
+  trades: TradeRecord[];
+  cleared: ClearedPosition[];
+}
+
 export interface StockQuote extends StockRef {
   price: number | null;
   previousClose: number | null;

@@ -32,4 +32,17 @@ describe('applyImportTransaction', () => {
     })).rejects.toThrow('已恢复原数据');
     expect(calls).toEqual(['watchlist:000002', 'current:000002', 'watchlist:000001', 'current:000001']);
   });
+
+  it('writes and rolls back portfolio together with watchlist data', async () => {
+    const calls: string[] = [];
+    const before = { ...state('000001'), portfolio: { positions: [], trades: [], cleared: [] } };
+    const next = { ...state('000002'), portfolio: { positions: [], trades: [], cleared: [] } };
+    let portfolioCalls = 0;
+    await expect(applyImportTransaction(next, before, {
+      replaceWatchlist: async () => { calls.push('watchlist'); },
+      setCurrentCode: async () => { calls.push('current'); },
+      replacePortfolio: async () => { calls.push('portfolio'); if (++portfolioCalls === 1) throw new Error('portfolio failed'); }
+    })).rejects.toThrow('已恢复原数据');
+    expect(calls).toEqual(['watchlist', 'current', 'portfolio', 'watchlist', 'current', 'portfolio']);
+  });
 });

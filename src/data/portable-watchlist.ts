@@ -1,4 +1,4 @@
-import type { AlertRule, WatchlistEntry, WatchlistGroup } from '../domain/types';
+import type { AlertRule, ClearedPosition, PortfolioData, PortfolioPosition, TradeRecord, WatchlistEntry, WatchlistGroup } from '../domain/types';
 import { createStockRef } from '../market/stock-code';
 import type { WatchlistData } from '../state/watchlist-store';
 
@@ -10,16 +10,17 @@ export interface PortableWatchlistBackup {
   version: typeof PORTABLE_VERSION;
   exportedAt: string;
   pluginVersion: string;
-  data: WatchlistData & { currentCode?: string; alerts?: AlertRule[] };
+  data: WatchlistData & { currentCode?: string; alerts?: AlertRule[]; portfolio?: PortfolioData };
 }
 
 export interface ImportResult {
   watchlist: WatchlistData;
   currentCode?: string;
   alerts?: AlertRule[];
+  portfolio?: PortfolioData;
 }
 
-export function createPortableBackup(watchlist: WatchlistData, currentCode: string | undefined, pluginVersion: string, now = new Date(), alerts?: readonly AlertRule[]): PortableWatchlistBackup {
+export function createPortableBackup(watchlist: WatchlistData, currentCode: string | undefined, pluginVersion: string, now = new Date(), alerts?: readonly AlertRule[], portfolio?: PortfolioData): PortableWatchlistBackup {
   return {
     format: PORTABLE_FORMAT,
     version: PORTABLE_VERSION,
@@ -29,7 +30,8 @@ export function createPortableBackup(watchlist: WatchlistData, currentCode: stri
       groups: watchlist.groups.map((group) => ({ ...group })),
       entries: watchlist.entries.map((entry) => ({ ...entry })),
       ...(currentCode ? { currentCode } : {}),
-      ...(alerts ? { alerts: alerts.map((rule) => ({ ...rule })) } : {})
+      ...(alerts ? { alerts: alerts.map((rule) => ({ ...rule })) } : {}),
+      ...(portfolio ? { portfolio: clonePortfolio(portfolio) } : {})
     }
   };
 }
@@ -54,12 +56,13 @@ export function parsePortableBackup(text: string): PortableWatchlistBackup {
     throw new Error('当前股票不在备份的自选股中');
   }
   const alerts = data.alerts === undefined ? undefined : parseAlerts(data.alerts);
+  const portfolio = data.portfolio === undefined ? undefined : parsePortfolio(data.portfolio);
   return {
     format: PORTABLE_FORMAT,
     version: PORTABLE_VERSION,
     exportedAt: root.exportedAt,
     pluginVersion: root.pluginVersion,
-    data: { groups, entries, ...(typeof currentCode === 'string' ? { currentCode } : {}), ...(alerts ? { alerts } : {}) }
+    data: { groups, entries, ...(typeof currentCode === 'string' ? { currentCode } : {}), ...(alerts ? { alerts } : {}), ...(portfolio ? { portfolio } : {}) }
   };
 }
 
@@ -70,11 +73,12 @@ export function restorePortableBackup(backup: PortableWatchlistBackup): ImportRe
       entries: backup.data.entries.map((entry) => ({ ...entry }))
     },
     currentCode: backup.data.currentCode,
-    ...(backup.data.alerts ? { alerts: backup.data.alerts.map((rule) => ({ ...rule })) } : {})
+    ...(backup.data.alerts ? { alerts: backup.data.alerts.map((rule) => ({ ...rule })) } : {}),
+    ...(backup.data.portfolio ? { portfolio: clonePortfolio(backup.data.portfolio) } : {})
   };
 }
 
-export function mergePortableBackup(local: WatchlistData, localCurrentCode: string | undefined, backup: PortableWatchlistBackup, localAlerts: readonly AlertRule[] = []): ImportResult {
+export function mergePortableBackup(local: WatchlistData, localCurrentCode: string | undefined, backup: PortableWatchlistBackup, localAlerts: readonly AlertRule[] = [], localPortfolio?: PortfolioData): ImportResult {
   const localGroups = [...local.groups].sort(bySortOrder).map((group) => ({ ...group }));
   const groupIdMap = new Map<string, string>();
   let nextGroupOrder = Math.max(-1, ...localGroups.map((group) => group.sortOrder)) + 1;
@@ -115,8 +119,16 @@ export function mergePortableBackup(local: WatchlistData, localCurrentCode: stri
   return {
     watchlist: { groups: localGroups, entries: mergedEntries },
     currentCode,
-    ...(backup.data.alerts ? { alerts: mergeAlerts(localAlerts, backup.data.alerts) } : {})
+    ...(backup.data.alerts ? { alerts: mergeAlerts(localAlerts, backup.data.alerts) } : {}),
+    ...(backup.data.portfolio ? { portfolio: mergePortfolioData(localPortfolio ?? emptyPortfolio(), backup.data.portfolio) } : {})
   };
+}
+
+export function mergePortfolioData(local: PortfolioData, remote: PortfolioData): PortfolioData {
+  const trades = mergeById(local.trades, remote.trades, (item) => item.id);
+  const positions = mergeById(local.positions, remote.positions, (item) => item.id, (left, right) => Date.parse(left.updatedAt) >= Date.parse(right.updatedAt) ? left : right);
+  const cleared = mergeById(local.cleared, remote.cleared, (item) => item.id, (left, right) => Date.parse(left.closedAt) >= Date.parse(right.closedAt) ? left : right);
+  return { positions, trades, cleared };
 }
 
 function mergeAlerts(local: readonly AlertRule[], remote: readonly AlertRule[]): AlertRule[] {
@@ -139,6 +151,49 @@ function parseAlerts(value: unknown): AlertRule[] {
     return { ...row } as AlertRule;
   });
 }
+
+function parsePortfolio(value: unknown): PortfolioData {
+  const root = object(value, '投资组合数据');
+  if (!Array.isArray(root.positions) || !Array.isArray(root.trades) || !Array.isArray(root.cleared)) throw new Error('投资组合数据结构无效');
+  const positions = root.positions.map((item, index) => parsePosition(item, index));
+  const trades = root.trades.map((item, index) => parseTrade(item, index));
+  const cleared = root.cleared.map((item, index) => parseCleared(item, index));
+  if (trades.length > 10000 || cleared.length > 1000) throw new Error('投资组合记录数量异常');
+  return { positions, trades, cleared };
+}
+
+function parsePosition(value: unknown, index: number): PortfolioPosition {
+  const item = object(value, `持仓 ${index + 1}`) as Partial<PortfolioPosition>;
+  if (typeof item.id !== 'string' || typeof item.code !== 'string' || !/^\d{6}$/.test(item.code) || typeof item.stockName !== 'string' || typeof item.shares !== 'number' || !Number.isInteger(item.shares) || item.shares <= 0 || typeof item.averageCost !== 'number' || !Number.isFinite(item.averageCost) || item.averageCost <= 0 || !Number.isFinite(item.totalBuyAmount) || !Number.isFinite(item.totalSellAmount) || !Number.isFinite(item.realizedProfit) || !validDate(item.openedAt) || !validDate(item.updatedAt)) throw new Error(`持仓 ${index + 1} 无效`);
+  return item as PortfolioPosition;
+}
+
+function parseTrade(value: unknown, index: number): TradeRecord {
+  const item = object(value, `交易流水 ${index + 1}`) as Partial<TradeRecord>;
+  if (typeof item.id !== 'string' || typeof item.positionId !== 'string' || typeof item.code !== 'string' || !/^\d{6}$/.test(item.code) || typeof item.stockName !== 'string' || (item.side !== 'buy' && item.side !== 'sell') || typeof item.price !== 'number' || !Number.isFinite(item.price) || item.price <= 0 || typeof item.shares !== 'number' || !Number.isInteger(item.shares) || item.shares <= 0 || !validDate(item.tradedAt)) throw new Error(`交易流水 ${index + 1} 无效`);
+  return item as TradeRecord;
+}
+
+function parseCleared(value: unknown, index: number): ClearedPosition {
+  const item = object(value, `清仓记录 ${index + 1}`) as Partial<ClearedPosition>;
+  if (typeof item.id !== 'string' || typeof item.positionId !== 'string' || typeof item.code !== 'string' || !/^\d{6}$/.test(item.code) || typeof item.stockName !== 'string' || !Number.isFinite(item.totalBuyAmount) || !Number.isFinite(item.totalSellAmount) || !Number.isFinite(item.realizedProfit) || !Number.isFinite(item.returnPercent) || typeof item.tradeCount !== 'number' || !Number.isInteger(item.tradeCount) || item.tradeCount <= 0 || !validDate(item.openedAt) || !validDate(item.closedAt) || !Array.isArray(item.trades)) throw new Error(`清仓记录 ${index + 1} 无效`);
+  const trades = item.trades.map((trade, tradeIndex) => parseTrade(trade, tradeIndex));
+  return { ...item, trades } as ClearedPosition;
+}
+
+function mergeById<T>(local: readonly T[], remote: readonly T[], id: (value: T) => string, choose: (left: T, right: T) => T = (_left, right) => right): T[] {
+  const merged = new Map(local.map((item) => [id(item), item]));
+  remote.forEach((item) => { const key = id(item); merged.set(key, merged.has(key) ? choose(merged.get(key)!, item) : item); });
+  return [...merged.values()].map((item) => ({ ...item }));
+}
+
+function emptyPortfolio(): PortfolioData { return { positions: [], trades: [], cleared: [] }; }
+
+function clonePortfolio(value: PortfolioData): PortfolioData {
+  return { positions: value.positions.map((item) => ({ ...item })), trades: value.trades.map((item) => ({ ...item })), cleared: value.cleared.map((item) => ({ ...item, trades: item.trades.map((trade) => ({ ...trade })) })) };
+}
+
+function validDate(value: unknown): value is string { return typeof value === 'string' && Number.isFinite(Date.parse(value)); }
 
 function parseGroups(value: unknown): WatchlistGroup[] {
   if (!Array.isArray(value) || !value.length || value.length > 500) throw new Error('分组数据为空或数量异常');

@@ -75,4 +75,13 @@ describe('portable watchlist backup', () => {
     expect(restorePortableBackup(parsed).alerts).toEqual([rule]);
     expect(restorePortableBackup(parsePortableBackup(serializePortableBackup(createPortableBackup(local, '600519', '0.1.33')))).alerts).toBeUndefined();
   });
+
+  it('round trips current portfolio and cleared history', () => {
+    const portfolio = {
+      positions: [], trades: [{ id: 't1', positionId: 'p1', code: '600519', stockName: '贵州茅台', side: 'buy' as const, price: 100, shares: 100, tradedAt: '2026-08-24T02:00:00.000Z' }],
+      cleared: [{ id: 'c1', positionId: 'p1', code: '600519', stockName: '贵州茅台', totalBuyAmount: 10000, totalSellAmount: 11000, realizedProfit: 1000, returnPercent: 10, tradeCount: 2, openedAt: '2026-08-24T02:00:00.000Z', closedAt: '2026-08-24T03:00:00.000Z', trades: [] }]
+    };
+    const parsed = parsePortableBackup(serializePortableBackup(createPortableBackup(local, '600519', '0.1.34', new Date(), undefined, portfolio)));
+    expect(restorePortableBackup(parsed).portfolio).toEqual(portfolio);
+  });
 });

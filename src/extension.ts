@@ -18,6 +18,7 @@ import { BackgroundVisibilityStore } from './state/background-visibility-store';
 import { SessionOpacityController } from './state/session-opacity-controller';
 import { WatchlistStore } from './state/watchlist-store';
 import { AlertStore } from './state/alert-store';
+import { PortfolioStore } from './state/portfolio-store';
 import { ChartPanel } from './views/chart-panel';
 import { WatchlistWebviewProvider } from './views/watchlist-webview';
 
@@ -33,6 +34,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
   const watchlist = new WatchlistStore(context.globalState);
   const alerts = new AlertStore(context.globalState);
+  const portfolio = new PortfolioStore(context.globalState, () => watchlist.getEntries(), (code, costPrice, shares) => watchlist.updateHolding(code, costPrice, shares));
   const current = new CurrentStockStore(context.globalState);
   const backgroundVisibility = new BackgroundVisibilityStore(context.globalState);
   const sessionOpacity = new SessionOpacityController();
@@ -44,8 +46,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     () => vscode.workspace.getConfiguration('aStockWatch').get<number>('refreshInterval', 2),
     () => vscode.workspace.getConfiguration('aStockWatch').get<number>('intradayRefreshInterval', 5)
   );
-  const watchlistView = new WatchlistWebviewProvider(context.extensionUri, watchlist, current, service, alerts);
-  const transfer = new WatchlistTransferService(context, watchlist, current, alerts);
+  const watchlistView = new WatchlistWebviewProvider(context.extensionUri, watchlist, current, service, alerts, portfolio);
+  const transfer = new WatchlistTransferService(context, watchlist, current, alerts, portfolio);
   const githubSync = new GitHubSyncService(context, transfer);
   const status = new StatusBarController(current, service);
   const alertController = new AlertController(alerts, service, () => watchlist.getEntries());
@@ -59,7 +61,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   try { await installer.reconcile(); } catch (error) { console.warn('A股盯盘背景安装状态同步失败', error); }
 
   context.subscriptions.push(
-    watchlist, alerts, current, watchlistView, status, alertController,
+    watchlist, alerts, portfolio, current, watchlistView, status, alertController,
     vscode.window.registerWebviewViewProvider('aStockWatch.watchlist', watchlistView, { webviewOptions: { retainContextWhenHidden: true } }),
     vscode.commands.registerCommand('aStockWatch.addStock', async () => {
       const input = await vscode.window.showInputBox({ prompt: '输入股票名称或六位代码', placeHolder: '例如 贵州茅台 或 600519' });
