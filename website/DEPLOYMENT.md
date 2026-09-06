@@ -13,3 +13,5 @@
    `https://<用户名>.github.io/<仓库名>/`
 
 下载按钮使用 `website/downloads/a-stock-watch-0.1.36.vsix`，因此部署后即可直接下载当前版本。以后发布新版本时，替换该文件并同步修改页面版本号即可。
+
+网站的“股东结构”模块由 `.github/workflows/retail-data.yml` 定时采集并提交 `website/data/retail/index.json`。首次发布后可在 Actions 页面手动运行该工作流，确认数据文件已更新；随后 Pages 工作流会自动重新部署。
