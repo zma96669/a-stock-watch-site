@@ -19,6 +19,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Refresh full A-share search directory
+        run: node scripts/collect-stock-universe.mjs
+
       - name: Collect shareholder and price history
         run: node scripts/collect-retail-data.mjs
 
@@ -26,6 +29,6 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add website/data/retail/index.json
+          git add website/data/retail/index.json website/data/retail/universe.json
           git diff --cached --quiet || git commit -m "data: refresh retail trend snapshots"
           git push

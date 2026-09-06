@@ -10,6 +10,9 @@ export interface RetailEstimate {
   estimatedRetailAccounts: number;
   estimatedRetailRatio: number | undefined;
   identifiableNonRetailAccounts: number;
+  identifiableInstitutionAccounts: number;
+  identifiableCorporateAccounts: number;
+  top10NonRetailAccounts: number;
   estimateMethod: string;
   confidence: 'B' | 'C';
 }

@@ -30,6 +30,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Refresh full A-share search directory
+        run: node scripts/collect-stock-universe.mjs
+
       - name: Collect latest retail trend data
         run: node scripts/collect-retail-data.mjs
 

@@ -28,6 +28,9 @@ export function buildRetailEstimate(input) {
   const shareholderAccounts = finiteNumber(input.shareholderAccounts);
   const estimatedRetailAccounts = estimateRetailAccounts(input);
   if (shareholderAccounts === undefined || estimatedRetailAccounts === undefined) return undefined;
+  const identifiableInstitutionAccounts = nonNegative(input.identifiableInstitutionAccounts);
+  const identifiableCorporateAccounts = nonNegative(input.identifiableCorporateAccounts);
+  const top10NonRetailAccounts = nonNegative(input.top10NonRetailAccounts);
   const excluded = shareholderAccounts - estimatedRetailAccounts;
   const hasIdentifiedNonRetail = excluded > 0;
   return {
@@ -35,11 +38,19 @@ export function buildRetailEstimate(input) {
     estimatedRetailAccounts,
     estimatedRetailRatio: shareholderAccounts > 0 ? estimatedRetailAccounts / shareholderAccounts : undefined,
     identifiableNonRetailAccounts: Math.max(0, Math.round(excluded)),
+    identifiableInstitutionAccounts,
+    identifiableCorporateAccounts,
+    top10NonRetailAccounts,
     estimateMethod: hasIdentifiedNonRetail
       ? '股东户数减去已识别的非散户账户'
       : '股东户数代理值（未获得完整机构账户明细）',
     confidence: hasIdentifiedNonRetail ? 'B' : 'C'
   };
+}
+
+function nonNegative(value) {
+  const number = finiteNumber(value);
+  return number !== undefined && number >= 0 ? Math.round(number) : 0;
 }
 
 export function pearsonCorrelation(left, right) {

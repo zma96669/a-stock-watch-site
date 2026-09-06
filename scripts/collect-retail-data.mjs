@@ -44,9 +44,15 @@ const output = {
   schemaVersion: 1,
   generatedAt: now,
   methodology: {
-    label: '散户数量估算代理值',
-    formula: '股东户数 - 已识别的非散户账户数；缺少机构账户明细时，以股东户数作为 C 级代理值',
-    disclaimer: '不是实际散户人数；一个投资者可能拥有多个账户，公开披露也不会完整分类账户。'
+    label: '股东户数代理值',
+    formula: 'H = 股东户数；I = 可识别机构账户；C = 可识别法人账户；T = 前十大可识别非散户账户；R = max(0, H − I − C − T)；代理占比 = R / H',
+    confidence: 'C（当前公开接口没有完整机构/法人账户明细，因此 R 通常等于 H；不是实际散户人数）',
+    disclaimer: '一个投资者可能拥有多个证券账户，公开披露也不会完整分类账户。结果用于观察历史结构变化，不代表因果或投资建议。',
+    sources: {
+      holders: '东方财富 datacenter-web：RPT_F10_EH_HOLDERNUM',
+      prices: '东方财富 push2his：日 K 线接口',
+      quote: '东方财富 push2：最新报价接口'
+    }
   },
   symbols
 };
@@ -105,6 +111,9 @@ async function collectSymbol(item) {
       holders: '东方财富公开股东户数报表',
       prices: '东方财富公开日 K 线接口',
       quote: '东方财富公开报价接口',
+      holdersUrl: holderUrl(item.code),
+      pricesUrl: priceUrl(item.code),
+      quoteUrl: quoteUrl(item.code),
       fetchedAt: now
     }
   };

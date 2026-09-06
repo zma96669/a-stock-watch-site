@@ -279,12 +279,33 @@
       averageShares: byId('retail-average-shares'),
       correlation: byId('retail-correlation'),
       asof: byId('retail-asof'),
+      detailHolder: byId('retail-detail-holder'),
+      detailPrice: byId('retail-detail-price'),
+      detailChange: byId('retail-detail-change'),
+      detailAmount: byId('retail-detail-amount'),
+      detailTurnover: byId('retail-detail-turnover'),
+      detailEstimate: byId('retail-detail-estimate'),
+      detailRatio: byId('retail-detail-ratio'),
+      detailInstitution: byId('retail-detail-institution'),
+      detailCorporate: byId('retail-detail-corporate'),
+      detailTop10: byId('retail-detail-top10'),
+      detailAsOf: byId('retail-detail-asof'),
+      detailNotice: byId('retail-detail-notice'),
+      detailAverageShares: byId('retail-detail-average-shares'),
+      detailAverageAmount: byId('retail-detail-average-amount'),
+      detailConcentration: byId('retail-detail-concentration'),
+      detailCoverage: byId('retail-detail-coverage'),
+      detailSourceStatus: byId('retail-detail-source-status'),
+      holderSource: byId('retail-source-holders'),
+      priceSource: byId('retail-source-prices'),
+      quoteSource: byId('retail-source-quote'),
+      universeSource: byId('retail-source-universe'),
       priceMax: byId('retail-price-max'),
       priceMin: byId('retail-price-min'),
       holderMax: byId('retail-holder-max'),
       holderMin: byId('retail-holder-min')
     };
-    const state = { symbols: [], current: undefined, range: 'all', view: undefined };
+    const state = { symbols: [], searchSymbols: [], current: undefined, range: 'all', view: undefined, universeSource: undefined };
 
     const number = (value) => {
       const parsed = Number(value);
@@ -307,6 +328,10 @@
       const n = number(value);
       return n === undefined ? '--' : n.toFixed(2);
     };
+    const exactText = (value) => {
+      const n = number(value);
+      return n === undefined ? '--' : n.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+    };
     const percentText = (value) => {
       const n = number(value);
       return n === undefined ? '--' : `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
@@ -314,6 +339,16 @@
     const confidenceText = (value) => ({ A: 'A · 明细充分', B: 'B · 部分识别', C: 'C · 户数代理' }[value] || '--');
     const setText = (node, value) => { if (node) node.textContent = value; };
     const setStatus = (message) => setText(status, message);
+    const setLink = (node, url) => {
+      if (!node) return;
+      node.href = url || '#';
+      node.classList.toggle('is-disabled', !url);
+      node.setAttribute('aria-disabled', String(!url));
+    };
+    const clearDetails = () => {
+      [nodes.detailPrice, nodes.detailChange, nodes.detailAmount, nodes.detailTurnover, nodes.detailHolder, nodes.detailEstimate, nodes.detailRatio, nodes.detailInstitution, nodes.detailCorporate, nodes.detailTop10, nodes.detailAsOf, nodes.detailNotice, nodes.detailAverageShares, nodes.detailAverageAmount, nodes.detailConcentration, nodes.detailCoverage, nodes.detailSourceStatus].forEach((node) => setText(node, '--'));
+      [nodes.universeSource, nodes.holderSource, nodes.priceSource, nodes.quoteSource].forEach((node) => setLink(node, undefined));
+    };
 
     function clearChart() {
       [nodes.priceArea, nodes.priceLine, nodes.holderLine, nodes.estimateLine].forEach((node) => node?.setAttribute('d', ''));
@@ -378,7 +413,7 @@
 
     function renderSuggestions(query = '') {
       const needle = query.trim().toLowerCase();
-      const matches = state.symbols.filter((symbol) => !needle || `${symbol.code} ${symbol.name}`.toLowerCase().includes(needle)).slice(0, 7);
+      const matches = state.searchSymbols.filter((symbol) => !needle || `${symbol.code} ${symbol.name}`.toLowerCase().includes(needle)).slice(0, 8);
       suggestions.replaceChildren();
       matches.forEach((symbol) => {
         const button = document.createElement('button');
@@ -387,7 +422,7 @@
         const name = document.createElement('span');
         name.textContent = symbol.name || symbol.code;
         const code = document.createElement('small');
-        code.textContent = symbol.code;
+        code.textContent = `${symbol.code} · ${symbol.dataReady ? '已采集' : '待采集'}`;
         button.append(name, code);
         suggestions.append(button);
       });
@@ -395,7 +430,8 @@
     }
 
     function selectSymbol(symbol) {
-      state.current = symbol;
+      const trend = state.symbols.find((item) => item.code === symbol.code);
+      state.current = trend ? { ...symbol, ...trend, dataReady: true } : { ...symbol, dataReady: false, prices: [], holders: [] };
       search.value = `${symbol.name || symbol.code}`;
       suggestions.classList.remove('open');
       render();
@@ -409,7 +445,30 @@
       const priceDates = prices.map((point) => dateValue(point.date)).filter((value) => value !== undefined);
       const holderDates = holders.map((point) => dateValue(point.date)).filter((value) => value !== undefined);
       const allDates = priceDates.concat(holderDates);
-      if (!allDates.length) { clearChart(); setText(nodes.name, symbol.name || symbol.code); setStatus('等待 GitHub Actions 首次采集'); return; }
+      if (!allDates.length) {
+        clearChart();
+        clearDetails();
+        const quote = symbol.latestQuote || {};
+        setText(nodes.name, `${symbol.name || symbol.code} · ${symbol.code}`);
+        setText(nodes.price, priceText(quote.price));
+        setText(nodes.change, percentText(quote.changePercent));
+        nodes.change?.classList.toggle('quote-up', number(quote.changePercent) >= 0);
+        nodes.change?.classList.toggle('quote-down', number(quote.changePercent) < 0);
+        setText(nodes.holders, '待采集');
+        setText(nodes.estimate, '待采集');
+        setText(nodes.ratio, '--');
+        setText(nodes.confidence, '目录数据');
+        setText(nodes.detailPrice, priceText(quote.price));
+        setText(nodes.detailChange, percentText(quote.changePercent));
+        setText(nodes.detailAmount, quote.amount === undefined ? '--' : `${exactText(quote.amount)} 元`);
+        setText(nodes.detailTurnover, quote.turnoverRate === undefined ? '--' : `${Number(quote.turnoverRate).toFixed(2)}%`);
+        setLink(nodes.universeSource, state.universeSource);
+        setText(nodes.methodology, '已找到全市场股票目录，但这只股票尚未生成股东户数历史快照。下一次采集任务完成后会自动出现趋势和字段明细。');
+        setText(nodes.detailSourceStatus, '目录已更新 · 趋势待采集');
+        setStatus('已找到 · 趋势数据待采集');
+        state.view = undefined;
+        return;
+      }
       const end = Math.max(...allDates);
       // Price history is intentionally limited to three years. For “全部”, use
       // the overlapping window so a decades-long holder history does not squash
@@ -468,6 +527,27 @@
       setText(nodes.confidence, confidenceText(latestHolder?.confidence));
       setText(nodes.asof, latestHolder?.asOf ? dateText(latestHolder.asOf) : '--');
       setText(nodes.averageShares, compact(latestHolder?.averageFreeShares));
+      setText(nodes.detailPrice, priceText(latestPrice));
+      setText(nodes.detailChange, percentText(quote.changePercent));
+      setText(nodes.detailAmount, quote.amount === undefined ? '--' : `${exactText(quote.amount)} 元`);
+      setText(nodes.detailTurnover, quote.turnoverRate === undefined ? '--' : `${Number(quote.turnoverRate).toFixed(2)}%`);
+      setText(nodes.detailHolder, exactText(latestHolder?.shareholderAccounts));
+      setText(nodes.detailEstimate, exactText(latestHolder?.estimatedRetailAccounts));
+      setText(nodes.detailRatio, latestHolder?.estimatedRetailRatio === undefined ? '--' : `${(latestHolder.estimatedRetailRatio * 100).toFixed(1)}%`);
+      setText(nodes.detailInstitution, exactText(latestHolder?.identifiableInstitutionAccounts));
+      setText(nodes.detailCorporate, exactText(latestHolder?.identifiableCorporateAccounts));
+      setText(nodes.detailTop10, exactText(latestHolder?.top10NonRetailAccounts));
+      setText(nodes.detailAsOf, latestHolder?.asOf ? dateText(latestHolder.asOf) : '--');
+      setText(nodes.detailNotice, latestHolder?.noticeDate ? dateText(latestHolder.noticeDate) : '--');
+      setText(nodes.detailAverageShares, exactText(latestHolder?.averageFreeShares));
+      setText(nodes.detailAverageAmount, latestHolder?.averageHoldAmount === undefined ? '--' : `${exactText(latestHolder.averageHoldAmount)} 元`);
+      setText(nodes.detailConcentration, latestHolder?.concentration || '--');
+      setText(nodes.detailCoverage, `${plotPrices.length} 个交易日 / ${plotHolders.length} 次披露`);
+      setText(nodes.detailSourceStatus, `${symbol.sourceStatus?.currentRun === 'ok' ? '采集成功' : '数据降级'} · ${state.generatedAt ? dateText(state.generatedAt) : '--'}`);
+      setLink(nodes.holderSource, latestHolder?.sourceUrl);
+      setLink(nodes.universeSource, state.universeSource);
+      setLink(nodes.priceSource, symbol.sourceStatus?.pricesUrl);
+      setLink(nodes.quoteSource, symbol.sourceStatus?.quoteUrl);
       const correlationPairs = plotHolders.map((holder) => nearest(plotPrices, dateValue(holder.date))?.close);
       const corr = correlation(plotHolders.map((point) => point.estimatedRetailAccounts), correlationPairs);
       setText(nodes.correlation, corr === undefined ? '样本不足' : `${corr >= 0 ? '+' : ''}${corr.toFixed(2)}`);
@@ -510,14 +590,24 @@
 
     async function init() {
       try {
-        const response = await fetch('data/retail/index.json', { cache: 'no-store' });
+        const [response, universeResponse] = await Promise.all([
+          fetch('data/retail/index.json', { cache: 'no-store' }),
+          fetch('data/retail/universe.json', { cache: 'no-store' }).catch(() => undefined)
+        ]);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const payload = await response.json();
+        const universePayload = universeResponse?.ok ? await universeResponse.json() : { stocks: [] };
         state.symbols = Array.isArray(payload.symbols) ? payload.symbols : [];
+        const trendCodes = new Set(state.symbols.map((symbol) => symbol.code));
+        const directory = Array.isArray(universePayload.stocks) ? universePayload.stocks : [];
+        state.searchSymbols = directory.length
+          ? directory.map((symbol) => ({ ...symbol, dataReady: trendCodes.has(symbol.code) }))
+          : state.symbols.map((symbol) => ({ ...symbol, dataReady: true }));
         state.generatedAt = payload.generatedAt;
         state.methodology = payload.methodology || {};
-        if (!state.symbols.length) { clearChart(); setStatus('暂无采集数据，请稍后刷新'); setText(nodes.methodology, 'GitHub Actions 尚未完成首次采集；采集后这里会显示股价与股东户数趋势。'); return; }
-        selectSymbol(state.symbols[0]);
+        state.universeSource = universePayload.sourceUrl;
+        if (!state.searchSymbols.length) { clearChart(); setStatus('暂无股票目录，请稍后刷新'); setText(nodes.methodology, '全市场股票目录尚未生成，请稍后刷新页面。'); return; }
+        selectSymbol(state.searchSymbols.find((symbol) => symbol.dataReady) || state.searchSymbols[0]);
       } catch (error) {
         clearChart();
         setStatus('数据读取失败');
@@ -530,9 +620,9 @@
     search.addEventListener('focus', () => renderSuggestions(search.value));
     search.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') { suggestions.classList.remove('open'); search.blur(); }
-      if (event.key === 'Enter') { const first = suggestions.querySelector('button'); if (first) { event.preventDefault(); state.current = state.symbols.find((symbol) => symbol.code === first.dataset.code) || state.current; selectSymbol(state.current); } }
+      if (event.key === 'Enter') { const first = suggestions.querySelector('button'); if (first) { event.preventDefault(); const symbol = state.searchSymbols.find((item) => item.code === first.dataset.code); if (symbol) selectSymbol(symbol); } }
     });
-    suggestions.addEventListener('click', (event) => { const button = event.target.closest('button'); const symbol = state.symbols.find((item) => item.code === button?.dataset.code); if (symbol) selectSymbol(symbol); });
+    suggestions.addEventListener('click', (event) => { const button = event.target.closest('button'); const symbol = state.searchSymbols.find((item) => item.code === button?.dataset.code); if (symbol) selectSymbol(symbol); });
     document.addEventListener('pointerdown', (event) => { if (!search.closest('.retail-search')?.contains(event.target)) suggestions.classList.remove('open'); });
     document.querySelectorAll('[data-retail-range]').forEach((button) => button.addEventListener('click', () => { state.range = button.dataset.retailRange || 'all'; document.querySelectorAll('[data-retail-range]').forEach((item) => item.classList.toggle('active', item === button)); render(); }));
     chartWrap.addEventListener('pointermove', showTooltip, { passive: true });
