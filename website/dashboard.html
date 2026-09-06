@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#06070b" />
+    <meta name="description" content="A股盯盘股东结构趋势看板：查看股价、股东户数与散户估算代理值的历史关系。" />
+    <title>结构趋势看板｜A股盯盘</title>
+    <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body class="dashboard-page">
+    <div class="page-progress" aria-hidden="true"><span></span></div>
+    <div class="ambient ambient-a" aria-hidden="true"></div>
+    <div class="ambient ambient-b" aria-hidden="true"></div>
+    <div class="noise" aria-hidden="true"></div>
+
+    <header class="dashboard-header site-header scrolled">
+      <a class="brand" href="index.html" aria-label="返回 A股盯盘首页">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="brand-copy"><strong>A股盯盘</strong><small>STRUCTURE DASHBOARD</small></span>
+      </a>
+      <div class="dashboard-header-label"><span class="live-dot"></span> PUBLIC SNAPSHOT</div>
+      <div class="dashboard-header-actions"><a class="dashboard-back" href="index.html">返回官网</a><a class="header-cta" href="downloads/a-stock-watch-0.1.36.vsix" download><span>下载 VSIX</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2v10m0 0 4-4m-4 4L6 8M3 14v3h14v-3" /></svg></a></div>
+    </header>
+
+    <main class="dashboard-main">
+      <section class="dashboard-intro">
+        <div class="dashboard-intro-copy">
+          <div class="section-kicker"><span>04</span> RETAIL FLOW / ANALYTICS</div>
+          <h1>股东结构<br /><em>趋势看板</em></h1>
+          <p>把价格走势与定期披露的股东户数放到同一条时间轴上。这里的“散户估算”是透明的代理指标，不是实际散户人数。</p>
+        </div>
+        <div class="dashboard-intro-note"><span>DATA NOTE</span><strong>低频披露，持续观察</strong><p>价格按交易日更新；股东户数按披露日更新。相关系数只描述历史同步关系，不代表因果。</p></div>
+      </section>
+
+      <section class="dashboard-panel" aria-label="股东结构趋势数据看板">
+        <div class="dashboard-toolbar">
+          <label class="retail-search dashboard-search"><span>⌕</span><input id="retail-search" type="search" placeholder="搜索股票名称或六位代码" autocomplete="off" /><div id="retail-suggestions" class="retail-suggestions" role="listbox"></div></label>
+          <div class="retail-ranges dashboard-ranges" role="group" aria-label="时间范围"><button type="button" class="active" data-retail-range="all">全部</button><button type="button" data-retail-range="3y">3年</button><button type="button" data-retail-range="1y">1年</button><button type="button" data-retail-range="3m">3个月</button></div>
+          <span id="retail-status" class="retail-status dashboard-status">正在读取数据…</span>
+        </div>
+
+        <div class="dashboard-symbol-row">
+          <div class="dashboard-symbol"><small id="retail-name">等待数据</small><div><strong id="retail-price">--</strong><span id="retail-change">--</span></div></div>
+          <div class="dashboard-stats retail-quote-stats"><span><small>最新股东户数</small><b id="retail-holders">--</b></span><span><small>散户估算代理</small><b id="retail-estimate">--</b></span><span><small>估算占比</small><b id="retail-ratio">--</b></span><span><small>数据可信度</small><b id="retail-confidence">--</b></span></div>
+        </div>
+
+        <div class="dashboard-chart-card">
+          <div class="dashboard-chart-heading"><div><span>PRICE × ACCOUNT STRUCTURE</span><h2>股价与账户变化</h2></div><div class="dashboard-source"><i></i><span>东方财富公开数据</span><small id="retail-methodology">数据加载中：股东户数按披露日更新，股价按交易日更新。</small></div></div>
+          <div class="retail-chart-wrap dashboard-chart-wrap"><svg id="retail-chart" viewBox="0 0 960 390" preserveAspectRatio="none" aria-label="股价与散户估算趋势图"><defs><linearGradient id="retail-price-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4be6ff" stop-opacity=".24"/><stop offset="1" stop-color="#4be6ff" stop-opacity="0"/></linearGradient><filter id="retail-glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g class="retail-grid"><path d="M0 55H960M0 125H960M0 195H960M0 265H960M0 335H960"/><path d="M160 0V350M320 0V350M480 0V350M640 0V350M800 0V350"/></g><path id="retail-price-area" class="retail-price-area" d=""/><path id="retail-price-line" class="retail-price-line" d=""/><path id="retail-holder-line" class="retail-holder-line" d=""/><path id="retail-estimate-line" class="retail-estimate-line" d=""/><g id="retail-holder-dots" class="retail-holder-dots"></g><g id="retail-estimate-dots" class="retail-estimate-dots"></g><g id="retail-disclosure-lines" class="retail-disclosure-lines"></g><line id="retail-cursor-x" class="retail-cursor" x1="0" y1="0" x2="0" y2="350"/><circle id="retail-cursor-dot" class="retail-cursor-dot" cx="0" cy="0" r="5"/></svg><div class="retail-axis retail-axis-left"><span id="retail-price-max">--</span><span>价格</span><span id="retail-price-min">--</span></div><div class="retail-axis retail-axis-right"><span id="retail-holder-max">--</span><span>账户</span><span id="retail-holder-min">--</span></div><div class="retail-chart-legend"><span><i class="legend-price"></i>股价</span><span><i class="legend-holder"></i>股东户数</span><span><i class="legend-retail"></i>散户估算代理</span></div><div id="retail-tooltip" class="retail-tooltip" hidden><small>--</small><b>--</b><span>--</span></div></div>
+        </div>
+
+        <div class="dashboard-insights retail-insight"><div><small>披露节奏</small><b id="retail-frequency">--</b></div><div><small>户均流通股</small><b id="retail-average-shares">--</b></div><div><small>股价/账户相关系数</small><b id="retail-correlation">--</b></div><div><small>最新披露</small><b id="retail-asof">--</b></div></div>
+      </section>
+
+      <section class="dashboard-method"><div><span class="dashboard-method-index">01</span><div><small>HOW TO READ</small><h2>先看方向，再看相关性。</h2><p>股东户数通常按季度披露，所以它更适合观察中期结构变化。股价是交易日序列，图上的竖线代表一次公开披露。</p></div></div><div><span class="dashboard-method-index">02</span><div><small>ESTIMATE POLICY</small><h2>估算值永远带着口径。</h2><p>公开数据没有完整的账户性质明细时，页面会以股东户数作为 C 级代理值，并明确标识“不是实际散户人数”。</p></div></div></section>
+    </main>
+
+    <footer class="dashboard-footer"><span>A股盯盘 · STRUCTURE DASHBOARD</span><a href="index.html">返回产品官网 ↑</a><span>数据仅供辅助查看，不构成投资建议</span></footer>
+    <script src="script.js"></script>
+  </body>
+</html>

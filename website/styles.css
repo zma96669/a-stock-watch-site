@@ -233,6 +233,10 @@ svg { display: block; }
 .retail-estimate-line { fill: none; stroke: #b27cff; stroke-width: 1; stroke-dasharray: 1 5; opacity: .42; }
 .retail-estimate-dots circle { fill: #b27cff; opacity: .55; stroke: #101a28; stroke-width: 1.5; }
 
+.dashboard-launch { position: relative; overflow: hidden; padding: 150px 0; background: radial-gradient(ellipse at 78% 50%, rgba(48, 118, 180, .15), transparent 52%); }
+.dashboard-launch-shell { display: grid; grid-template-columns: .75fr 1.25fr; align-items: center; gap: 70px; }.dashboard-launch-copy h2 { margin: 0; font-size: clamp(42px, 5.3vw, 72px); line-height: 1.06; letter-spacing: -.06em; }.dashboard-launch-copy h2 em { color: #68758b; font-style: normal; }.dashboard-launch-copy p { max-width: 480px; margin: 28px 0 32px; color: #8491a5; font-size: 15px; line-height: 1.85; }.dashboard-launch-copy .button { width: max-content; }
+.dashboard-launch-preview { overflow: hidden; min-height: 335px; padding: 18px 20px 15px; border: 1px solid rgba(115, 169, 212, .23); border-radius: 18px; background: linear-gradient(145deg, rgba(13, 24, 37, .9), rgba(7, 12, 21, .92)); box-shadow: 0 30px 85px rgba(0,0,0,.32), 0 0 55px rgba(62, 191, 255, .07); }.preview-top { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 14px; border-bottom: 1px solid rgba(129, 162, 200, .14); color: #63798f; font: 9px var(--mono); }.preview-top b { color: var(--cyan); font-weight: 400; }.preview-metrics { display: flex; gap: 32px; padding: 25px 4px 20px; }.preview-metrics span { display: flex; flex-direction: column; gap: 8px; }.preview-metrics small { color: #60748a; font: 9px var(--mono); }.preview-metrics strong { color: #d5eaf6; font: 18px var(--mono); }.preview-trace { position: relative; height: 175px; overflow: hidden; border-top: 1px solid rgba(129, 162, 200, .1); border-bottom: 1px solid rgba(129, 162, 200, .1); background: linear-gradient(rgba(86, 130, 175, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(86, 130, 175, .06) 1px, transparent 1px); background-size: 55px 44px; }.preview-trace svg { width: 100%; height: 100%; }.preview-trace path { fill: none; stroke: var(--cyan); stroke-width: 1.5; filter: drop-shadow(0 0 4px rgba(76, 228, 255, .6)); }.preview-trace path.preview-account { stroke: #b583ff; stroke-width: 1; stroke-dasharray: 4 5; filter: none; }.preview-trace i { position: absolute; top: 0; bottom: 0; width: 1px; border-left: 1px dashed rgba(164, 131, 255, .24); }.preview-trace i:nth-child(1) { left: 18%; }.preview-trace i:nth-child(2) { left: 37%; }.preview-trace i:nth-child(3) { left: 58%; }.preview-trace i:nth-child(4) { left: 77%; }.preview-trace i:nth-child(5) { left: 91%; }.preview-footer { display: flex; gap: 18px; padding-top: 13px; color: #6d7f94; font: 8px var(--mono); }.preview-footer span::before { content: ""; display: inline-block; width: 13px; height: 2px; margin-right: 6px; vertical-align: middle; background: var(--cyan); }.preview-footer span:nth-child(2)::before { background: #b583ff; }.preview-footer span:nth-child(3)::before { background: #b583ff; opacity: .4; border-top: 1px dashed #b583ff; }
+
 @media (max-width: 820px) {
   .retail-shell { grid-template-columns: 1fr; gap: 36px; }
   .retail-heading { position: static; }
@@ -244,6 +248,7 @@ svg { display: block; }
   .retail-quote-stats span { align-items: flex-start; }
   .retail-insight { grid-template-columns: repeat(2, 1fr); row-gap: 16px; }
   .retail-insight div:nth-child(2) { border-right: 0; }
+  .dashboard-launch-shell { grid-template-columns: 1fr; gap: 42px; }.dashboard-launch-copy { max-width: 720px; }.dashboard-launch-preview { width: 100%; }
 }
 
 @media (max-width: 560px) {
@@ -255,4 +260,5 @@ svg { display: block; }
   .retail-chart-legend { gap: 8px; font-size: 7px; }
   .retail-axis { font-size: 7px; }
   .retail-insight { margin-inline: 10px; }
+  .dashboard-launch { padding: 110px 0 90px; }.dashboard-launch-copy h2 { font-size: 42px; }.dashboard-launch-copy p { font-size: 14px; }.dashboard-launch-copy .button { width: 100%; }.dashboard-launch-preview { min-height: 280px; padding: 14px; }.preview-metrics { gap: 16px; padding-block: 18px; }.preview-metrics strong { font-size: 14px; }.preview-trace { height: 145px; }.preview-footer { gap: 8px; font-size: 7px; }
 }
