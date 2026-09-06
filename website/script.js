@@ -305,18 +305,25 @@
       holderMax: byId('retail-holder-max'),
       holderMin: byId('retail-holder-min')
     };
-    const state = { symbols: [], searchSymbols: [], current: undefined, range: 'all', view: undefined, universeSource: undefined };
+    const state = { symbols: [], searchSymbols: [], current: undefined, range: 'all', view: undefined, universeSource: undefined, realtimeLoading: false };
+    const realtimeRefreshMs = 5000;
+    let selectionToken = 0;
 
     const number = (value) => {
       const parsed = Number(value);
       return Number.isFinite(parsed) ? parsed : undefined;
     };
     const dateValue = (value) => {
-      const text = String(value ?? '').slice(0, 10);
-      const timestamp = Date.parse(`${text}T00:00:00`);
+      const raw = String(value ?? '').trim();
+      if (!raw) return undefined;
+      const text = raw.includes(' ') ? raw.replace(' ', 'T') : `${raw.slice(0, 10)}T00:00:00`;
+      const timestamp = Date.parse(text);
       return Number.isFinite(timestamp) ? timestamp : undefined;
     };
-    const dateText = (value) => String(value ?? '').slice(0, 10).replaceAll('-', '.');
+    const dateText = (value) => {
+      const raw = String(value ?? '').trim();
+      return raw.includes(' ') ? raw.slice(5, 16).replace(' ', ' ') : raw.slice(0, 10).replaceAll('-', '.');
+    };
     const compact = (value) => {
       const n = number(value);
       if (n === undefined) return '--';
@@ -349,6 +356,58 @@
       [nodes.detailPrice, nodes.detailChange, nodes.detailAmount, nodes.detailTurnover, nodes.detailHolder, nodes.detailEstimate, nodes.detailRatio, nodes.detailInstitution, nodes.detailCorporate, nodes.detailTop10, nodes.detailAsOf, nodes.detailNotice, nodes.detailAverageShares, nodes.detailAverageAmount, nodes.detailConcentration, nodes.detailCoverage, nodes.detailSourceStatus].forEach((node) => setText(node, '--'));
       [nodes.universeSource, nodes.holderSource, nodes.priceSource, nodes.quoteSource].forEach((node) => setLink(node, undefined));
     };
+
+    function realtimeUrls(symbol) {
+      const market = symbol.market === 'SH' || String(symbol.code).startsWith('6') ? '1' : '0';
+      const secid = `${market}.${symbol.code}`;
+      return {
+        quote: `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f47,f48,f58,f60,f168,f170`,
+        trends: `https://push2.eastmoney.com/api/qt/stock/trends2/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58`
+      };
+    }
+
+    async function fetchRealtimeSymbol(symbol) {
+      const urls = realtimeUrls(symbol);
+      const [quoteResponse, trendsResponse] = await Promise.all([
+        fetch(urls.quote, { cache: 'no-store' }),
+        fetch(urls.trends, { cache: 'no-store' })
+      ]);
+      if (!quoteResponse.ok) throw new Error(`实时报价 HTTP ${quoteResponse.status}`);
+      const quotePayload = await quoteResponse.json();
+      const quote = quotePayload?.data || {};
+      const trendsPayload = trendsResponse.ok ? await trendsResponse.json() : {};
+      const trends = Array.isArray(trendsPayload?.data?.trends) ? trendsPayload.data.trends : [];
+      const prices = trends.map((row) => {
+        const fields = String(row).split(',');
+        return {
+          date: fields[0],
+          close: number(fields[1]),
+          average: number(fields[2]),
+          volume: number(fields[5]),
+          amount: number(fields[6])
+        };
+      }).filter((point) => point.date && point.close !== undefined);
+      return {
+        name: quote.f58 || symbol.name,
+        latestQuote: {
+          price: number(quote.f43) === undefined ? symbol.latestQuote?.price : number(quote.f43) / 100,
+          previousClose: number(quote.f60) === undefined ? symbol.latestQuote?.previousClose : number(quote.f60) / 100,
+          changePercent: number(quote.f170) === undefined ? symbol.latestQuote?.changePercent : number(quote.f170) / 100,
+          turnoverRate: number(quote.f168) === undefined ? symbol.latestQuote?.turnoverRate : number(quote.f168) / 100,
+          volume: number(quote.f47),
+          amount: number(quote.f48)
+        },
+        prices,
+        realtime: true,
+        sourceStatus: {
+          ...(symbol.sourceStatus || {}),
+          realtime: '东方财富实时报价与分时接口',
+          quoteUrl: urls.quote,
+          pricesUrl: urls.trends,
+          fetchedAt: new Date().toISOString()
+        }
+      };
+    }
 
     function clearChart() {
       [nodes.priceArea, nodes.priceLine, nodes.holderLine, nodes.estimateLine].forEach((node) => node?.setAttribute('d', ''));
@@ -422,19 +481,48 @@
         const name = document.createElement('span');
         name.textContent = symbol.name || symbol.code;
         const code = document.createElement('small');
-        code.textContent = `${symbol.code} · ${symbol.dataReady ? '已采集' : '待采集'}`;
+        code.textContent = `${symbol.code} · ${symbol.dataReady ? '趋势已采集 · 实时刷新' : '实时行情 · 分时加载'}`;
         button.append(name, code);
         suggestions.append(button);
       });
       suggestions.classList.toggle('open', matches.length > 0 && (document.activeElement === search || needle.length > 0));
     }
 
-    function selectSymbol(symbol) {
+    async function selectSymbol(symbol) {
+      const token = ++selectionToken;
       const trend = state.symbols.find((item) => item.code === symbol.code);
       state.current = trend ? { ...symbol, ...trend, dataReady: true } : { ...symbol, dataReady: false, prices: [], holders: [] };
       search.value = `${symbol.name || symbol.code}`;
       suggestions.classList.remove('open');
+      setStatus('正在读取实时行情…');
       render();
+      try {
+        const realtime = await fetchRealtimeSymbol(state.current);
+        if (token !== selectionToken) return;
+        state.current = { ...state.current, ...realtime };
+        render();
+      } catch (error) {
+        if (token !== selectionToken) return;
+        setStatus('实时行情读取失败 · 保留快照');
+        console.warn('[retail realtime]', error);
+      }
+    }
+
+    async function refreshCurrentRealtime() {
+      if (!state.current || state.realtimeLoading || document.visibilityState === 'hidden') return;
+      const target = state.current;
+      state.realtimeLoading = true;
+      try {
+        const realtime = await fetchRealtimeSymbol(target);
+        if (state.current === target) {
+          state.current = { ...target, ...realtime };
+          render();
+        }
+      } catch (error) {
+        console.warn('[retail realtime refresh]', error);
+      } finally {
+        state.realtimeLoading = false;
+      }
     }
 
     function render() {
@@ -463,9 +551,12 @@
         setText(nodes.detailAmount, quote.amount === undefined ? '--' : `${exactText(quote.amount)} 元`);
         setText(nodes.detailTurnover, quote.turnoverRate === undefined ? '--' : `${Number(quote.turnoverRate).toFixed(2)}%`);
         setLink(nodes.universeSource, state.universeSource);
-        setText(nodes.methodology, '已找到全市场股票目录，但这只股票尚未生成股东户数历史快照。下一次采集任务完成后会自动出现趋势和字段明细。');
+        setText(nodes.methodology, symbol.realtime ? '实时行情已接入；股东户数属于低频披露数据，当前股票尚未纳入历史股东户数采集。' : '已找到全市场股票目录，但这只股票尚未接入实时行情。');
         setText(nodes.detailSourceStatus, '目录已更新 · 趋势待采集');
-        setStatus('已找到 · 趋势数据待采集');
+        setLink(nodes.universeSource, state.universeSource);
+        setLink(nodes.quoteSource, symbol.sourceStatus?.quoteUrl);
+        setLink(nodes.priceSource, symbol.sourceStatus?.pricesUrl);
+        setStatus(symbol.realtime ? '实时行情已接入 · 分时数据暂不可用' : '已找到 · 正在等待实时行情');
         state.view = undefined;
         return;
       }
@@ -542,8 +633,8 @@
       setText(nodes.detailAverageShares, exactText(latestHolder?.averageFreeShares));
       setText(nodes.detailAverageAmount, latestHolder?.averageHoldAmount === undefined ? '--' : `${exactText(latestHolder.averageHoldAmount)} 元`);
       setText(nodes.detailConcentration, latestHolder?.concentration || '--');
-      setText(nodes.detailCoverage, `${plotPrices.length} 个交易日 / ${plotHolders.length} 次披露`);
-      setText(nodes.detailSourceStatus, `${symbol.sourceStatus?.currentRun === 'ok' ? '采集成功' : '数据降级'} · ${state.generatedAt ? dateText(state.generatedAt) : '--'}`);
+      setText(nodes.detailCoverage, `${symbol.realtime && !plotHolders.length ? `${plotPrices.length} 个分时点` : `${plotPrices.length} 个交易日`} / ${plotHolders.length} 次披露`);
+      setText(nodes.detailSourceStatus, symbol.realtime ? `实时行情 · ${dateText(symbol.sourceStatus?.fetchedAt)}` : `${symbol.sourceStatus?.currentRun === 'ok' ? '采集成功' : '数据降级'} · ${state.generatedAt ? dateText(state.generatedAt) : '--'}`);
       setLink(nodes.holderSource, latestHolder?.sourceUrl);
       setLink(nodes.universeSource, state.universeSource);
       setLink(nodes.priceSource, symbol.sourceStatus?.pricesUrl);
@@ -555,8 +646,11 @@
       const median = intervals.sort((a, b) => a - b)[Math.floor(intervals.length / 2)];
       setText(nodes.frequency, median === undefined ? '待积累' : median > 75 ? '季度披露' : median > 35 ? '月度披露' : '不定期');
       const generated = state.generatedAt ? ` · 更新 ${dateText(state.generatedAt)}` : '';
-      setText(nodes.methodology, `${state.methodology?.formula || '股东户数代理值'}。${state.methodology?.disclaimer || '不是实际散户人数'}${generated}`);
-      setStatus(`${plotPrices.length} 个交易日 · ${plotHolders.length} 次披露`);
+      const methodology = symbol.realtime && !plotHolders.length
+        ? '实时行情来自东方财富报价与分时接口，页面约每 5 秒刷新；股东户数属于定期披露数据，当前股票暂未采集历史股东户数。'
+        : `${state.methodology?.formula || '股东户数代理值'}。${state.methodology?.disclaimer || '不是实际散户人数'}${generated}`;
+      setText(nodes.methodology, methodology);
+      setStatus(symbol.realtime && !plotHolders.length ? `${plotPrices.length} 个实时分时点 · 股东户数历史待采集` : `${plotPrices.length} 个交易日 · ${plotHolders.length} 次披露`);
       state.view = { plotPrices, plotHolders, start, end, xFor, yPrice };
     }
 
@@ -607,7 +701,7 @@
         state.methodology = payload.methodology || {};
         state.universeSource = universePayload.sourceUrl;
         if (!state.searchSymbols.length) { clearChart(); setStatus('暂无股票目录，请稍后刷新'); setText(nodes.methodology, '全市场股票目录尚未生成，请稍后刷新页面。'); return; }
-        selectSymbol(state.searchSymbols.find((symbol) => symbol.dataReady) || state.searchSymbols[0]);
+        void selectSymbol(state.searchSymbols.find((symbol) => symbol.dataReady) || state.searchSymbols[0]);
       } catch (error) {
         clearChart();
         setStatus('数据读取失败');
@@ -620,13 +714,14 @@
     search.addEventListener('focus', () => renderSuggestions(search.value));
     search.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') { suggestions.classList.remove('open'); search.blur(); }
-      if (event.key === 'Enter') { const first = suggestions.querySelector('button'); if (first) { event.preventDefault(); const symbol = state.searchSymbols.find((item) => item.code === first.dataset.code); if (symbol) selectSymbol(symbol); } }
+      if (event.key === 'Enter') { const first = suggestions.querySelector('button'); if (first) { event.preventDefault(); const symbol = state.searchSymbols.find((item) => item.code === first.dataset.code); if (symbol) void selectSymbol(symbol); } }
     });
-    suggestions.addEventListener('click', (event) => { const button = event.target.closest('button'); const symbol = state.searchSymbols.find((item) => item.code === button?.dataset.code); if (symbol) selectSymbol(symbol); });
+    suggestions.addEventListener('click', (event) => { const button = event.target.closest('button'); const symbol = state.searchSymbols.find((item) => item.code === button?.dataset.code); if (symbol) void selectSymbol(symbol); });
     document.addEventListener('pointerdown', (event) => { if (!search.closest('.retail-search')?.contains(event.target)) suggestions.classList.remove('open'); });
     document.querySelectorAll('[data-retail-range]').forEach((button) => button.addEventListener('click', () => { state.range = button.dataset.retailRange || 'all'; document.querySelectorAll('[data-retail-range]').forEach((item) => item.classList.toggle('active', item === button)); render(); }));
     chartWrap.addEventListener('pointermove', showTooltip, { passive: true });
     chartWrap.addEventListener('pointerleave', () => { nodes.cursorX?.style.setProperty('opacity', '0'); nodes.cursorDot?.style.setProperty('opacity', '0'); if (nodes.tooltip) nodes.tooltip.hidden = true; }, { passive: true });
+    window.setInterval(() => { void refreshCurrentRealtime(); }, realtimeRefreshMs);
     init();
     return { render };
   })();
