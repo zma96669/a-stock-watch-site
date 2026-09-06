@@ -38,3 +38,77 @@
 @media (max-width: 560px) {
   .dashboard-header { top: 10px; width: calc(100% - 20px); margin-top: 10px; }.dashboard-header-label, .dashboard-back { display: none; }.dashboard-header-actions { gap: 0; }.dashboard-main { width: calc(100% - 24px); padding-top: 80px; }.dashboard-intro { padding: 25px 5px 32px; }.dashboard-intro-copy h1 { font-size: 53px; }.dashboard-intro-copy p { margin-top: 22px; font-size: 13px; }.dashboard-panel { border-radius: 16px; }.dashboard-toolbar { padding: 11px; gap: 10px; }.dashboard-ranges { width: 100%; justify-content: space-between; }.dashboard-ranges button { flex: 1; padding-inline: 5px; }.dashboard-status { max-width: none; width: 100%; text-align: left; }.dashboard-symbol-row { padding: 23px 17px 15px; }.dashboard-symbol strong { font-size: 39px; }.dashboard-stats { gap: 8px; overflow-x: auto; padding-bottom: 4px; }.dashboard-stats span { min-width: 82px; }.dashboard-stats b { font-size: 12px; }.dashboard-chart-card { margin-inline: 10px; }.dashboard-chart-heading { display: block; padding-inline: 7px; }.dashboard-source { margin-top: 12px; text-align: left; }.dashboard-chart-wrap { height: 320px; margin-inline: -4px; }.dashboard-chart-wrap .retail-chart-legend { gap: 8px; font-size: 7px; }.dashboard-chart-wrap .retail-axis { font-size: 7px; }.dashboard-insights { margin-inline: 10px; grid-template-columns: repeat(2, 1fr); }.dashboard-insights div { padding-inline: 10px; }.dashboard-data-card { margin-top: 16px; padding: 21px 13px 16px; }.dashboard-data-heading h2 { font-size: 19px; }.dashboard-detail-grid { margin-top: 15px; }.dashboard-detail-grid > div { min-height: 77px; padding: 11px 10px; }.dashboard-detail-grid strong { font-size: 12px; }.dashboard-source-links { gap: 10px; font-size: 8px; }.dashboard-method { margin-top: 16px; }.dashboard-method > div { min-height: 0; padding: 22px 17px; grid-template-columns: 28px 1fr; }.dashboard-method h2 { font-size: 16px; }.dashboard-footer { width: calc(100% - 24px); display: grid; gap: 10px; padding-bottom: 24px; }
 }
+
+/* Presentation mode: the dashboard is also used in reviews and demos, so
+   the provenance fields must remain readable when shown on a projector. */
+.dashboard-page .dashboard-header-label { font-size: 11px; }
+.dashboard-page .dashboard-back { font-size: 13px; }
+.dashboard-page .dashboard-intro-copy p { font-size: 16px; }
+.dashboard-page .dashboard-intro-note span,
+.dashboard-page .dashboard-intro-note small { font-size: 11px; }
+.dashboard-page .dashboard-intro-note strong { font-size: 19px; }
+.dashboard-page .dashboard-intro-note p { font-size: 12px; }
+.dashboard-page .dashboard-toolbar { min-height: 88px; }
+.dashboard-page .dashboard-search input { font-size: 15px; }
+.dashboard-page .dashboard-suggestions button { font-size: 13px; }
+.dashboard-page .retail-suggestions button { font-size: 13px; }
+.dashboard-page .retail-suggestions small { font-size: 11px; }
+.dashboard-page .dashboard-ranges button { font-size: 12px; }
+.dashboard-page .dashboard-status { font-size: 11px; }
+.dashboard-page .dashboard-symbol small { font-size: 13px; }
+.dashboard-page .dashboard-symbol strong { font-size: 56px; }
+.dashboard-page .dashboard-symbol span { font-size: 15px; }
+.dashboard-page .dashboard-stats span small { font-size: 12px; }
+.dashboard-page .dashboard-stats b { font-size: 18px; }
+.dashboard-page .dashboard-chart-heading > div:first-child > span { font-size: 11px; }
+.dashboard-page .dashboard-chart-heading h2 { font-size: 25px; }
+.dashboard-page .dashboard-source span { font-size: 13px; }
+.dashboard-page .dashboard-source small { font-size: 11px; }
+.dashboard-page .dashboard-chart-wrap .retail-axis { font-size: 12px; }
+.dashboard-page .dashboard-chart-wrap .retail-chart-legend { font-size: 12px; }
+.dashboard-page .dashboard-insights small { font-size: 11px; }
+.dashboard-page .dashboard-insights b { font-size: 16px; }
+.dashboard-page .dashboard-data-card { padding: 34px 34px 25px; }
+.dashboard-page .dashboard-data-heading span { font-size: 11px; }
+.dashboard-page .dashboard-data-heading h2 { font-size: 28px; }
+.dashboard-page .dashboard-data-heading p { max-width: 590px; font-size: 14px; line-height: 1.85; }
+.dashboard-page .dashboard-detail-grid { margin-top: 26px; }
+.dashboard-page .dashboard-detail-grid > div { min-height: 112px; padding: 18px 19px; gap: 9px; }
+.dashboard-page .dashboard-detail-grid small { font-size: 11px; }
+.dashboard-page .dashboard-detail-grid strong { font-size: 20px; }
+.dashboard-page .dashboard-detail-grid span { font-size: 11px; line-height: 1.4; }
+.dashboard-page .dashboard-source-links { gap: 20px; padding-top: 20px; font-size: 12px; }
+.dashboard-page .dashboard-method-index { font-size: 12px; }
+.dashboard-page .dashboard-method small { font-size: 11px; }
+.dashboard-page .dashboard-method h2 { font-size: 22px; }
+.dashboard-page .dashboard-method p { font-size: 14px; line-height: 1.85; }
+.dashboard-page .dashboard-footer { font-size: 11px; }
+
+@media (max-width: 900px) {
+  .dashboard-page .dashboard-intro-copy p { font-size: 15px; }
+  .dashboard-page .dashboard-data-heading h2 { font-size: 25px; }
+  .dashboard-page .dashboard-detail-grid > div { min-height: 100px; }
+}
+
+@media (max-width: 560px) {
+  .dashboard-page .dashboard-toolbar { min-height: 0; }
+  .dashboard-page .dashboard-symbol strong { font-size: 44px; }
+  .dashboard-page .dashboard-stats span small { font-size: 10px; }
+  .dashboard-page .dashboard-stats b { font-size: 14px; }
+  .dashboard-page .dashboard-chart-heading > div:first-child > span { font-size: 9px; }
+  .dashboard-page .dashboard-chart-heading h2 { font-size: 21px; }
+  .dashboard-page .dashboard-source span { font-size: 11px; }
+  .dashboard-page .dashboard-source small { font-size: 10px; }
+  .dashboard-page .dashboard-chart-wrap .retail-axis,
+  .dashboard-page .dashboard-chart-wrap .retail-chart-legend { font-size: 9px; }
+  .dashboard-page .dashboard-data-card { padding: 25px 15px 19px; }
+  .dashboard-page .dashboard-data-heading h2 { font-size: 22px; }
+  .dashboard-page .dashboard-data-heading p { font-size: 12px; }
+  .dashboard-page .dashboard-detail-grid > div { min-height: 90px; padding: 13px 11px; }
+  .dashboard-page .dashboard-detail-grid small { font-size: 9px; }
+  .dashboard-page .dashboard-detail-grid strong { font-size: 15px; }
+  .dashboard-page .dashboard-detail-grid span { font-size: 9px; }
+  .dashboard-page .dashboard-source-links { gap: 12px; font-size: 10px; }
+  .dashboard-page .dashboard-method h2 { font-size: 19px; }
+  .dashboard-page .dashboard-method p { font-size: 12px; }
+}
