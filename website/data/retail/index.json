@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-27T07:55:47.606Z",
+  "generatedAt": "2026-10-28T08:37:29.903Z",
   "methodology": {
     "label": "股东户数代理值",
     "formula": "H = 股东户数；I = 可识别机构账户；C = 可识别法人账户；T = 前十大可识别非散户账户；R = max(0, H − I − C − T)；代理占比 = R / H",
@@ -18,11 +18,11 @@
       "name": "长江电力",
       "market": "SH",
       "latestQuote": {
-        "price": 29.83,
-        "previousClose": 29.86,
-        "changePercent": -0.1,
-        "turnoverRate": 0.44,
-        "amount": 3190500774
+        "price": 29.4,
+        "previousClose": 29.83,
+        "changePercent": -1.44,
+        "turnoverRate": 0.55,
+        "amount": 3935063406
       },
       "holders": [
         {
@@ -1773,17 +1773,6 @@
         }
       ],
       "prices": [
-        {
-          "date": "2023-10-27",
-          "open": 19.56,
-          "close": 19.48,
-          "high": 19.71,
-          "low": 19.45,
-          "volume": 548441,
-          "amount": 1225705131,
-          "changePercent": -0.46,
-          "turnoverRate": 0.24
-        },
         {
           "date": "2023-10-30",
           "open": 19.5,
@@ -9758,6 +9747,17 @@
           "amount": 3190500774,
           "changePercent": -0.1,
           "turnoverRate": 0.44
+        },
+        {
+          "date": "2026-10-28",
+          "open": 29.54,
+          "close": 29.4,
+          "high": 29.73,
+          "low": 29.06,
+          "volume": 1339930,
+          "amount": 3935063406,
+          "changePercent": -1.44,
+          "turnoverRate": 0.55
         }
       ],
       "sourceStatus": {
@@ -9766,9 +9766,9 @@
         "prices": "东方财富公开日 K 线接口",
         "quote": "东方财富公开报价接口",
         "holdersUrl": "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_F10_EH_HOLDERNUM&columns=ALL&filter=(SECURITY_CODE%3D%22600900%22)&pageNumber=1&pageSize=100&sortColumns=END_DATE&sortTypes=-1",
-        "pricesUrl": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=1.600900&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20231027&end=20500101",
+        "pricesUrl": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=1.600900&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20231028&end=20500101",
         "quoteUrl": "https://push2.eastmoney.com/api/qt/stock/get?secid=1.600900&fields=f43,f48,f58,f60,f168,f170",
-        "fetchedAt": "2026-10-27T07:55:47.606Z"
+        "fetchedAt": "2026-10-28T08:37:29.903Z"
       }
     },
     {
@@ -9776,11 +9776,11 @@
       "name": "平安银行",
       "market": "SZ",
       "latestQuote": {
-        "price": 11.47,
-        "previousClose": 11.3,
-        "changePercent": 1.5,
-        "turnoverRate": 0.79,
-        "amount": 1750404157.02
+        "price": 11.31,
+        "previousClose": 11.47,
+        "changePercent": -1.39,
+        "turnoverRate": 0.87,
+        "amount": 1911547804.41
       },
       "holders": [
         {
@@ -11585,17 +11585,6 @@
         }
       ],
       "prices": [
-        {
-          "date": "2023-10-27",
-          "open": 8.21,
-          "close": 8.28,
-          "high": 8.31,
-          "low": 8.16,
-          "volume": 919771,
-          "amount": 957587534.43,
-          "changePercent": 0.49,
-          "turnoverRate": 0.47
-        },
         {
           "date": "2023-10-30",
           "open": 8.23,
@@ -19570,6 +19559,17 @@
           "amount": 1750404157.02,
           "changePercent": 1.5,
           "turnoverRate": 0.79
+        },
+        {
+          "date": "2026-10-28",
+          "open": 11.43,
+          "close": 11.31,
+          "high": 11.5,
+          "low": 11.22,
+          "volume": 1687009,
+          "amount": 1911547804.41,
+          "changePercent": -1.39,
+          "turnoverRate": 0.87
         }
       ],
       "sourceStatus": {
@@ -19578,9 +19578,9 @@
         "prices": "东方财富公开日 K 线接口",
         "quote": "东方财富公开报价接口",
         "holdersUrl": "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_F10_EH_HOLDERNUM&columns=ALL&filter=(SECURITY_CODE%3D%22000001%22)&pageNumber=1&pageSize=100&sortColumns=END_DATE&sortTypes=-1",
-        "pricesUrl": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=0.000001&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20231027&end=20500101",
+        "pricesUrl": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=0.000001&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20231028&end=20500101",
         "quoteUrl": "https://push2.eastmoney.com/api/qt/stock/get?secid=0.000001&fields=f43,f48,f58,f60,f168,f170",
-        "fetchedAt": "2026-10-27T07:55:47.606Z"
+        "fetchedAt": "2026-10-28T08:37:29.903Z"
       }
     },
     {
@@ -19588,11 +19588,11 @@
       "name": "宁德时代",
       "market": "SZ",
       "latestQuote": {
-        "price": 233,
-        "previousClose": 238,
-        "changePercent": -2.1,
-        "turnoverRate": 0.88,
-        "amount": 8814345788.37
+        "price": 229.14,
+        "previousClose": 233,
+        "changePercent": -1.66,
+        "turnoverRate": 1.04,
+        "amount": 10243438858.99
       },
       "holders": [
         {
@@ -20299,17 +20299,6 @@
         }
       ],
       "prices": [
-        {
-          "date": "2023-10-27",
-          "open": 157.75,
-          "close": 164.62,
-          "high": 165.78,
-          "low": 155.92,
-          "volume": 477953,
-          "amount": 8729936697,
-          "changePercent": 4.21,
-          "turnoverRate": 1.23
-        },
         {
           "date": "2023-10-30",
           "open": 166.9,
@@ -28281,9 +28270,20 @@
           "high": 238.8,
           "low": 232.67,
           "volume": 375050,
-          "amount": 8814345788.37,
+          "amount": 8814345788,
           "changePercent": -2.1,
           "turnoverRate": 0.88
+        },
+        {
+          "date": "2026-10-28",
+          "open": 233.34,
+          "close": 229.14,
+          "high": 234,
+          "low": 228.6,
+          "volume": 443879,
+          "amount": 10243438858.99,
+          "changePercent": -1.66,
+          "turnoverRate": 1.04
         }
       ],
       "sourceStatus": {
@@ -28292,9 +28292,9 @@
         "prices": "东方财富公开日 K 线接口",
         "quote": "东方财富公开报价接口",
         "holdersUrl": "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_F10_EH_HOLDERNUM&columns=ALL&filter=(SECURITY_CODE%3D%22300750%22)&pageNumber=1&pageSize=100&sortColumns=END_DATE&sortTypes=-1",
-        "pricesUrl": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=0.300750&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20231027&end=20500101",
+        "pricesUrl": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=0.300750&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20231028&end=20500101",
         "quoteUrl": "https://push2.eastmoney.com/api/qt/stock/get?secid=0.300750&fields=f43,f48,f58,f60,f168,f170",
-        "fetchedAt": "2026-10-27T07:55:47.606Z"
+        "fetchedAt": "2026-10-28T08:37:29.903Z"
       }
     }
   ]
